@@ -1,9 +1,10 @@
 # Shopify Performance
 
-A minimal Home Assistant custom integration exposing Shopify revenue as two sensors:
+A minimal Home Assistant custom integration exposing Shopify revenue as three sensors:
 
 - Revenue today
 - Revenue year to date
+- Revenue previous month
 
 ## Requirements
 
@@ -35,7 +36,7 @@ The integration selects orders by `createdAt`, excludes orders whose `cancelledA
 
 This is gross current order value—not an accounting payout, cash-flow, tax, or profit metric. A fully refunded, non-cancelled order normally contributes its remaining current total (typically zero).
 
-The year starts January 1 and today starts at midnight in Home Assistant's configured timezone. Boundaries are converted to UTC only for Shopify queries.
+The year starts January 1, today starts at midnight, and previous month covers the complete preceding calendar month in Home Assistant's configured timezone. Boundaries are converted to UTC only for Shopify queries.
 
 ## Updates and authentication
 
@@ -47,13 +48,15 @@ The integration is read-only and performs GraphQL queries only.
 
 - `sensor.shopify_revenue_today`
 - `sensor.shopify_revenue_year_to_date`
+- `sensor.shopify_revenue_previous_month`
 
 Entity IDs can vary if Home Assistant resolves a naming collision.
 
 ## API version
 
-v0.1.0 targets Shopify Admin GraphQL API `2026-07`.
+v0.1.1 targets Shopify Admin GraphQL API `2026-07`.
 
 ## License
 
 MIT
+
