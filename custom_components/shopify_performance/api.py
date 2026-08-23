@@ -31,6 +31,7 @@ class RevenueData:
 
     today: Decimal
     year_to_date: Decimal
+    previous_month: Decimal
     currency: str
 
 
@@ -85,15 +86,22 @@ class ShopifyApiClient:
         return str(data["shop"]["currencyCode"])
 
     async def async_get_revenue(
-        self, year_start_utc: str, today_start_utc: str, now_utc: str
+        self,
+        query_start_utc: str,
+        year_start_utc: str,
+        today_start_utc: str,
+        previous_month_start_utc: str,
+        previous_month_end_utc: str,
+        now_utc: str,
     ) -> RevenueData:
-        """Fetch uncancelled YTD orders and calculate both totals."""
+        """Fetch uncancelled orders and calculate all revenue totals."""
         after: str | None = None
         today_total = Decimal("0")
         ytd_total = Decimal("0")
+        previous_month_total = Decimal("0")
         currency: str | None = None
         search_query = (
-            f"status:any created_at:>='{year_start_utc}' created_at:<='{now_utc}'"
+            f"status:any created_at:>='{query_start_utc}' created_at:<='{now_utc}'"
         )
 
         while True:
@@ -113,9 +121,16 @@ class ShopifyApiClient:
                     amount = Decimal(money["amount"])
                 except (InvalidOperation, TypeError) as err:
                     raise ShopifyApiError("Shopify returned an invalid amount") from err
-                ytd_total += amount
+                if order["createdAt"] >= year_start_utc:
+                    ytd_total += amount
                 if order["createdAt"] >= today_start_utc:
                     today_total += amount
+                if (
+                    previous_month_start_utc
+                    <= order["createdAt"]
+                    < previous_month_end_utc
+                ):
+                    previous_month_total += amount
 
             page_info = orders["pageInfo"]
             if not page_info["hasNextPage"]:
@@ -124,7 +139,7 @@ class ShopifyApiClient:
 
         if currency is None:
             raise ShopifyApiError("Shopify did not return a shop currency")
-        return RevenueData(today_total, ytd_total, currency)
+        return RevenueData(today_total, ytd_total, previous_month_total, currency)
 
     async def _async_get_token(self, force: bool = False) -> str:
         if not force and self._access_token and time.monotonic() < self._token_expires_at:
@@ -205,3 +220,4 @@ class ShopifyApiClient:
             return data
 
         raise ShopifyAuthError("Shopify authentication failed")
+
