@@ -31,6 +31,11 @@ SENSORS = (
     ShopifyRevenueSensorDescription(
         "revenue_year_to_date", "revenue_year_to_date", lambda data: data.year_to_date
     ),
+    ShopifyRevenueSensorDescription(
+        "revenue_previous_month",
+        "revenue_previous_month",
+        lambda data: data.previous_month,
+    ),
 )
 
 
@@ -79,3 +84,4 @@ class ShopifyRevenueSensor(CoordinatorEntity[ShopifyPerformanceCoordinator], Sen
     def native_unit_of_measurement(self) -> str:
         """Return the shop currency."""
         return self.coordinator.data.currency
+
