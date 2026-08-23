@@ -32,6 +32,11 @@ class ShopifyPerformanceCoordinator(DataUpdateCoordinator[RevenueData]):
         today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         year_start_local = today_start_local.replace(month=1, day=1)
         current_month_start_local = today_start_local.replace(day=1)
+        last_year_start_local = year_start_local.replace(year=year_start_local.year - 1)
+        try:
+            last_year_end_local = now_local.replace(year=now_local.year - 1)
+        except ValueError:
+            last_year_end_local = now_local.replace(year=now_local.year - 1, day=28)
         if current_month_start_local.month == 1:
             previous_month_start_local = current_month_start_local.replace(
                 year=current_month_start_local.year - 1, month=12
@@ -40,20 +45,26 @@ class ShopifyPerformanceCoordinator(DataUpdateCoordinator[RevenueData]):
             previous_month_start_local = current_month_start_local.replace(
                 month=current_month_start_local.month - 1
             )
-        query_start_local = min(year_start_local, previous_month_start_local)
+        query_start_local = min(
+            year_start_local, previous_month_start_local, last_year_start_local
+        )
 
         def shopify_timestamp(value: datetime) -> str:
             return dt_util.as_utc(value).isoformat().replace("+00:00", "Z")
 
         try:
-            return await self._client.async_get_revenue(
+            revenue = await self._client.async_get_revenue(
                 shopify_timestamp(query_start_local),
                 shopify_timestamp(year_start_local),
                 shopify_timestamp(today_start_local),
                 shopify_timestamp(previous_month_start_local),
                 shopify_timestamp(current_month_start_local),
+                shopify_timestamp(current_month_start_local),
+                shopify_timestamp(last_year_start_local),
+                shopify_timestamp(last_year_end_local),
                 shopify_timestamp(now_local),
             )
+            return await self._client.async_add_inventory_value(revenue)
         except ShopifyApiError as err:
             raise UpdateFailed(str(err)) from err
 
