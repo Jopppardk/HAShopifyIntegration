@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 import time
 from typing import Any
@@ -32,6 +32,9 @@ class RevenueData:
     today: Decimal
     year_to_date: Decimal
     previous_month: Decimal
+    current_month: Decimal
+    last_year_same_time: Decimal
+    inventory_value: Decimal
     currency: str
 
 
@@ -50,6 +53,34 @@ query RevenueOrders($first: Int!, $after: String, $query: String!) {
 """
 
 SHOP_QUERY = "query ShopCurrency { shop { currencyCode } }"
+
+INVENTORY_QUERY = """
+query InventoryValue($first: Int!, $after: String) {
+  inventoryItems(first: $first, after: $after) {
+    nodes {
+      id
+      tracked
+      unitCost { amount currencyCode }
+      inventoryLevels(first: 10) {
+        nodes { quantities(names: ["available"]) { name quantity } }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+"""
+
+INVENTORY_LEVELS_QUERY = """
+query InventoryLevels($id: ID!, $after: String) {
+  inventoryItem(id: $id) {
+    inventoryLevels(first: 250, after: $after) {
+      nodes { quantities(names: ["available"]) { name quantity } }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}
+"""
 
 
 class ShopifyApiClient:
@@ -92,6 +123,9 @@ class ShopifyApiClient:
         today_start_utc: str,
         previous_month_start_utc: str,
         previous_month_end_utc: str,
+        current_month_start_utc: str,
+        last_year_start_utc: str,
+        last_year_end_utc: str,
         now_utc: str,
     ) -> RevenueData:
         """Fetch uncancelled orders and calculate all revenue totals."""
@@ -99,6 +133,8 @@ class ShopifyApiClient:
         today_total = Decimal("0")
         ytd_total = Decimal("0")
         previous_month_total = Decimal("0")
+        current_month_total = Decimal("0")
+        last_year_same_time_total = Decimal("0")
         currency: str | None = None
         search_query = (
             f"status:any created_at:>='{query_start_utc}' created_at:<='{now_utc}'"
@@ -131,6 +167,10 @@ class ShopifyApiClient:
                     < previous_month_end_utc
                 ):
                     previous_month_total += amount
+                if order["createdAt"] >= current_month_start_utc:
+                    current_month_total += amount
+                if last_year_start_utc <= order["createdAt"] <= last_year_end_utc:
+                    last_year_same_time_total += amount
 
             page_info = orders["pageInfo"]
             if not page_info["hasNextPage"]:
@@ -139,7 +179,72 @@ class ShopifyApiClient:
 
         if currency is None:
             raise ShopifyApiError("Shopify did not return a shop currency")
-        return RevenueData(today_total, ytd_total, previous_month_total, currency)
+        return RevenueData(
+            today_total,
+            ytd_total,
+            previous_month_total,
+            current_month_total,
+            last_year_same_time_total,
+            Decimal("0"),
+            currency,
+        )
+
+    async def async_add_inventory_value(self, data: RevenueData) -> RevenueData:
+        """Return performance data with current available inventory at unit cost."""
+        after: str | None = None
+        inventory_value = Decimal("0")
+
+        while True:
+            payload = await self._async_graphql(
+                INVENTORY_QUERY, {"first": 50, "after": after}
+            )
+            items = payload["inventoryItems"]
+            for item in items["nodes"]:
+                unit_cost = item["unitCost"]
+                if not item["tracked"] or unit_cost is None:
+                    continue
+                if unit_cost["currencyCode"] != data.currency:
+                    raise ShopifyApiError(
+                        "Inventory cost currency did not match shop currency"
+                    )
+                try:
+                    cost = Decimal(unit_cost["amount"])
+                except (InvalidOperation, TypeError) as err:
+                    raise ShopifyApiError("Shopify returned an invalid unit cost") from err
+
+                levels = item["inventoryLevels"]
+                available = self._available_quantity(levels["nodes"])
+                while levels["pageInfo"]["hasNextPage"]:
+                    level_payload = await self._async_graphql(
+                        INVENTORY_LEVELS_QUERY,
+                        {"id": item["id"], "after": levels["pageInfo"]["endCursor"]},
+                    )
+                    inventory_item = level_payload["inventoryItem"]
+                    if inventory_item is None:
+                        raise ShopifyApiError(
+                            "Inventory item disappeared while updating"
+                        )
+                    levels = inventory_item["inventoryLevels"]
+                    available += self._available_quantity(levels["nodes"])
+
+                inventory_value += Decimal(max(available, 0)) * cost
+
+            page_info = items["pageInfo"]
+            if not page_info["hasNextPage"]:
+                break
+            after = page_info["endCursor"]
+
+        return replace(data, inventory_value=inventory_value)
+
+    @staticmethod
+    def _available_quantity(levels: list[dict[str, Any]]) -> int:
+        """Sum available quantity from inventory level nodes."""
+        return sum(
+            int(quantity["quantity"])
+            for level in levels
+            for quantity in level["quantities"]
+            if quantity["name"] == "available"
+        )
 
     async def _async_get_token(self, force: bool = False) -> str:
         if not force and self._access_token and time.monotonic() < self._token_expires_at:

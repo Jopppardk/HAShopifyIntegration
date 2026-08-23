@@ -24,6 +24,7 @@ class ShopifyRevenueSensorDescription:
     key: str
     translation_key: str
     value_fn: Callable[[RevenueData], Decimal]
+    state_class: SensorStateClass = SensorStateClass.TOTAL
 
 
 SENSORS = (
@@ -35,6 +36,22 @@ SENSORS = (
         "revenue_previous_month",
         "revenue_previous_month",
         lambda data: data.previous_month,
+    ),
+    ShopifyRevenueSensorDescription(
+        "revenue_current_month",
+        "revenue_current_month",
+        lambda data: data.current_month,
+    ),
+    ShopifyRevenueSensorDescription(
+        "revenue_last_year_same_time",
+        "revenue_last_year_same_time",
+        lambda data: data.last_year_same_time,
+    ),
+    ShopifyRevenueSensorDescription(
+        "inventory_value",
+        "inventory_value",
+        lambda data: data.inventory_value,
+        SensorStateClass.MEASUREMENT,
     ),
 )
 
@@ -55,7 +72,6 @@ class ShopifyRevenueSensor(CoordinatorEntity[ShopifyPerformanceCoordinator], Sen
     """A Shopify revenue sensor."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.TOTAL
     _attr_icon = "mdi:cash"
 
     def __init__(
@@ -67,6 +83,7 @@ class ShopifyRevenueSensor(CoordinatorEntity[ShopifyPerformanceCoordinator], Sen
         super().__init__(coordinator)
         self._description = description
         self._attr_translation_key = description.translation_key
+        self._attr_state_class = description.state_class
         self._attr_has_entity_name = True
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
         self._attr_device_info = {

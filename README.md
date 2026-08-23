@@ -1,10 +1,13 @@
 # Shopify Performance
 
-A minimal Home Assistant custom integration exposing Shopify revenue as three sensors:
+A minimal Home Assistant custom integration exposing Shopify performance as six sensors:
 
 - Revenue today
 - Revenue year to date
 - Revenue previous month
+- Revenue current month
+- Revenue last year at this time
+- Inventory value at cost
 
 ## Requirements
 
@@ -13,6 +16,7 @@ A minimal Home Assistant custom integration exposing Shopify revenue as three se
 - The app installed on the target store
 - The `read_orders` scope
 - The `read_all_orders` scope when year-to-date data can be older than Shopify's default 60-day order window
+- The `read_inventory` or `read_products` scope, plus permission to view product costs, for inventory value
 
 Shopify's client credentials grant only works for apps developed by your own organization and stores owned by that organization.
 
@@ -36,7 +40,9 @@ The integration selects orders by `createdAt`, excludes orders whose `cancelledA
 
 This is gross current order value—not an accounting payout, cash-flow, tax, or profit metric. A fully refunded, non-cancelled order normally contributes its remaining current total (typically zero).
 
-The year starts January 1, today starts at midnight, and previous month covers the complete preceding calendar month in Home Assistant's configured timezone. Boundaries are converted to UTC only for Shopify queries.
+The year starts January 1, today starts at midnight, current month starts on day 1, and previous month covers the complete preceding calendar month in Home Assistant's configured timezone. “Revenue last year at this time” covers January 1 last year through the equivalent local date and time last year. Boundaries are converted to UTC only for Shopify queries.
+
+Inventory value is a point-in-time estimate: for every tracked inventory item with a unit cost, the integration sums positive `available` quantities across all active Shopify locations and multiplies that quantity by `unitCost`. Untracked items, items without unit cost, and zero or negative available quantities contribute zero.
 
 ## Updates and authentication
 
@@ -49,12 +55,15 @@ The integration is read-only and performs GraphQL queries only.
 - `sensor.shopify_revenue_today`
 - `sensor.shopify_revenue_year_to_date`
 - `sensor.shopify_revenue_previous_month`
+- `sensor.shopify_revenue_current_month`
+- `sensor.shopify_revenue_last_year_same_time`
+- `sensor.shopify_inventory_value`
 
 Entity IDs can vary if Home Assistant resolves a naming collision.
 
 ## API version
 
-v0.1.1 targets Shopify Admin GraphQL API `2026-07`.
+v0.2.0 targets Shopify Admin GraphQL API `2026-07`.
 
 ## License
 

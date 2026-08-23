@@ -26,6 +26,9 @@
   },
   "entity": {
     "sensor": {
+      "inventory_value": { "name": "Inventory value" },
+      "revenue_current_month": { "name": "Revenue current month" },
+      "revenue_last_year_same_time": { "name": "Revenue last year at this time" },
       "revenue_previous_month": { "name": "Revenue previous month" },
       "revenue_today": { "name": "Revenue today" },
       "revenue_year_to_date": { "name": "Revenue year to date" }
