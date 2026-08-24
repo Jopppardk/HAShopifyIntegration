@@ -17,6 +17,7 @@ A Home Assistant custom integration exposing Shopify revenue and inventory perfo
 - Online store conversion rate today, month to date, and year to date
 - Sessions with cart additions today, month to date, and year to date
 - Sessions that reached checkout today, month to date, and year to date
+- Sessions that completed checkout today, month to date, and year to date
 
 ## Requirements
 
@@ -70,7 +71,7 @@ The integration is read-only and performs GraphQL queries only.
 
 ## Sessions, orders, and conversion
 
-Traffic metrics use ShopifyQL Analytics and refresh every five minutes. Sessions include human online-store sessions only; bot sessions are excluded. Conversion rate is calculated as sessions that completed checkout divided by sessions, multiplied by 100, and is shown with one decimal place. Order counts use Shopify Analytics' `orders` metric. These reporting periods follow Shopify Analytics' reporting calendar and store timezone. Cart counts use `sessions_with_cart_additions`, and checkout counts use `sessions_that_reached_checkout`; these are session-based funnel metrics rather than counts of unique customers.
+Traffic metrics use ShopifyQL Analytics and refresh every five minutes. Sessions include human online-store sessions only; bot sessions are excluded. Conversion rate is calculated as sessions that completed checkout divided by sessions, multiplied by 100, and is shown with one decimal place. Order counts use Shopify Analytics' `orders` metric filtered to the `Online Store` sales channel. These reporting periods follow Shopify Analytics' reporting calendar and store timezone. Cart counts use `sessions_with_cart_additions`, and checkout counts use `sessions_that_reached_checkout`; these are session-based funnel metrics rather than counts of unique customers.
 
 ## Entities
 
@@ -99,6 +100,9 @@ Traffic metrics use ShopifyQL Analytics and refresh every five minutes. Sessions
 - `sensor.shopify_integration_checkouts_reached_today`
 - `sensor.shopify_integration_checkouts_reached_month_to_date`
 - `sensor.shopify_integration_checkouts_reached_year_to_date`
+- `sensor.shopify_integration_checkouts_completed_today`
+- `sensor.shopify_integration_checkouts_completed_month_to_date`
+- `sensor.shopify_integration_checkouts_completed_year_to_date`
 
 Entity IDs can vary if Home Assistant resolves a naming collision.
 
@@ -108,7 +112,7 @@ An ApexCharts dashboard example is available at [`examples/shopify_integration_d
 
 ## API version
 
-v0.5.0 targets Shopify Admin GraphQL API `2026-07`.
+v0.6.0 targets Shopify Admin GraphQL API `2026-07`.
 
 ## License
 
