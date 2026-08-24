@@ -80,7 +80,11 @@ MONTHLY_SENSORS = (
     ShopifyMonthlySensorDescription(
         "revenue_ltm_change_percent",
         "revenue_ltm_change_percent",
-        lambda data: data.change_percent,
+        lambda data: (
+            data.change_percent.quantize(Decimal("0.1"))
+            if data.change_percent is not None
+            else None
+        ),
         False,
         SensorStateClass.MEASUREMENT,
     ),
@@ -168,6 +172,8 @@ class ShopifyMonthlySensor(
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
         if description.monetary:
             self._attr_device_class = SensorDeviceClass.MONETARY
+        else:
+            self._attr_suggested_display_precision = 1
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.unique_id or entry.entry_id)},
             "name": "Shopify Integration",
