@@ -1,4 +1,4 @@
-# Shopify Performance
+# Shopify Integration
 
 A Home Assistant custom integration exposing Shopify revenue and inventory performance.
 
@@ -26,9 +26,9 @@ Shopify's client credentials grant only works for apps developed by your own org
 
 ## Installation
 
-Add this repository to HACS as a custom repository of type **Integration**, install **Shopify Performance**, and restart Home Assistant. Alternatively, copy `custom_components/shopify_performance` into Home Assistant's `custom_components` directory.
+Add this repository to HACS as a custom repository of type **Integration**, install **Shopify Integration**, and restart Home Assistant. Alternatively, copy `custom_components/shopify_integration` into Home Assistant's `custom_components` directory.
 
-Go to **Settings → Devices & services → Add integration**, search for **Shopify Performance**, and enter:
+Go to **Settings → Devices & services → Add integration**, search for **Shopify Integration**, and enter:
 
 - Store domain, such as `mystore.myshopify.com` (`mystore.myshopify` is also accepted)
 - Client ID
@@ -54,7 +54,7 @@ The integration keeps a rolling window of the latest 12 calendar months and alig
 
 For example, on August 24, 2026, the window is September 2025 through August 2026 and is aligned with September 2024 through August 24, 2025. At the start of September, the window moves forward automatically.
 
-The 24-month history query is refreshed every six hours to limit Shopify API load. Live operational sensors continue to refresh every five minutes. The `sensor.shopify_monthly_revenue` entity exposes the aligned rows in its `months` attribute for dashboard use.
+The 24-month history query is refreshed every six hours to limit Shopify API load. Live operational sensors continue to refresh every five minutes. The `sensor.shopify_integration_monthly_revenue` entity exposes the aligned rows in its `months` attribute for dashboard use.
 
 ## Updates and authentication
 
@@ -64,26 +64,26 @@ The integration is read-only and performs GraphQL queries only.
 
 ## Entities
 
-- `sensor.shopify_revenue_today`
-- `sensor.shopify_revenue_year_to_date`
-- `sensor.shopify_revenue_previous_month`
-- `sensor.shopify_revenue_current_month`
-- `sensor.shopify_revenue_last_year_same_time`
-- `sensor.shopify_inventory_value`
-- `sensor.shopify_revenue_ltm`
-- `sensor.shopify_revenue_ltm_previous_year`
-- `sensor.shopify_revenue_ltm_change_percent`
-- `sensor.shopify_monthly_revenue`
+- `sensor.shopify_integration_revenue_today`
+- `sensor.shopify_integration_revenue_year_to_date`
+- `sensor.shopify_integration_revenue_previous_month`
+- `sensor.shopify_integration_revenue_current_month`
+- `sensor.shopify_integration_revenue_last_year_same_time`
+- `sensor.shopify_integration_inventory_value`
+- `sensor.shopify_integration_revenue_ltm`
+- `sensor.shopify_integration_revenue_ltm_previous_year`
+- `sensor.shopify_integration_revenue_ltm_change_percent`
+- `sensor.shopify_integration_monthly_revenue`
 
 Entity IDs can vary if Home Assistant resolves a naming collision.
 
 ## Dashboard example
 
-An ApexCharts dashboard example is available at [`examples/shopify_performance_dashboard.yaml`](examples/shopify_performance_dashboard.yaml). Install ApexCharts Card through HACS before using the chart.
+An ApexCharts dashboard example is available at [`examples/shopify_integration_dashboard.yaml`](examples/shopify_integration_dashboard.yaml). Install ApexCharts Card through HACS before using the chart.
 
 ## API version
 
-v0.2.1 targets Shopify Admin GraphQL API `2026-07`.
+v0.3.0 targets Shopify Admin GraphQL API `2026-07`.
 
 ## License
 
