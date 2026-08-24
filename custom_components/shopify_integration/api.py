@@ -50,6 +50,21 @@ class MonthlyRevenueData:
     currency: str
 
 
+@dataclass(frozen=True)
+class AnalyticsData:
+    """Shopify Analytics totals for the current reporting periods."""
+
+    sessions_today: int
+    sessions_month_to_date: int
+    sessions_year_to_date: int
+    orders_today: int
+    orders_month_to_date: int
+    orders_year_to_date: int
+    conversion_rate_today: Decimal
+    conversion_rate_month_to_date: Decimal
+    conversion_rate_year_to_date: Decimal
+
+
 ORDERS_QUERY = """
 query RevenueOrders($first: Int!, $after: String, $query: String!) {
   shop { currencyCode }
@@ -65,6 +80,19 @@ query RevenueOrders($first: Int!, $after: String, $query: String!) {
 """
 
 SHOP_QUERY = "query ShopCurrency { shop { currencyCode } }"
+
+ANALYTICS_QUERY = """
+query PerformanceAnalytics($ordersQuery: String!, $sessionsQuery: String!) {
+  orders: shopifyqlQuery(query: $ordersQuery) {
+    tableData { rows }
+    parseErrors
+  }
+  sessions: shopifyqlQuery(query: $sessionsQuery) {
+    tableData { rows }
+    parseErrors
+  }
+}
+"""
 
 INVENTORY_QUERY = """
 query InventoryValue($first: Int!, $after: String) {
@@ -247,6 +275,85 @@ class ShopifyApiClient:
             after = page_info["endCursor"]
 
         return replace(data, inventory_value=inventory_value)
+
+    async def async_get_analytics(
+        self, today_key: str, month_key: str, year_key: str
+    ) -> AnalyticsData:
+        """Return Shopify Analytics session, order, and conversion totals."""
+        orders_query = (
+            "FROM sales SHOW orders TIMESERIES day DURING this_year "
+            "ORDER BY day ASC"
+        )
+        sessions_query = (
+            "FROM sessions SHOW sessions, sessions_that_completed_checkout "
+            "WHERE human_or_bot_session = 'human' TIMESERIES day "
+            "DURING this_year ORDER BY day ASC"
+        )
+        data = await self._async_graphql(
+            ANALYTICS_QUERY,
+            {"ordersQuery": orders_query, "sessionsQuery": sessions_query},
+        )
+        order_rows = self._shopifyql_rows(data["orders"], "orders")
+        session_rows = self._shopifyql_rows(data["sessions"], "sessions")
+
+        orders_today = orders_month = orders_year = 0
+        for row in order_rows:
+            day = str(row.get("day", ""))[:10]
+            orders = int(Decimal(str(row.get("orders", 0))))
+            if day.startswith(year_key):
+                orders_year += orders
+            if day.startswith(month_key):
+                orders_month += orders
+            if day == today_key:
+                orders_today += orders
+
+        sessions_today = sessions_month = sessions_year = 0
+        checkouts_today = checkouts_month = checkouts_year = 0
+        for row in session_rows:
+            day = str(row.get("day", ""))[:10]
+            sessions = int(Decimal(str(row.get("sessions", 0))))
+            checkouts = int(
+                Decimal(str(row.get("sessions_that_completed_checkout", 0)))
+            )
+            if day.startswith(year_key):
+                sessions_year += sessions
+                checkouts_year += checkouts
+            if day.startswith(month_key):
+                sessions_month += sessions
+                checkouts_month += checkouts
+            if day == today_key:
+                sessions_today += sessions
+                checkouts_today += checkouts
+
+        def conversion_rate(completed: int, sessions: int) -> Decimal:
+            if sessions == 0:
+                return Decimal("0.0")
+            return (
+                Decimal(completed) / Decimal(sessions) * Decimal("100")
+            ).quantize(Decimal("0.1"))
+
+        return AnalyticsData(
+            sessions_today,
+            sessions_month,
+            sessions_year,
+            orders_today,
+            orders_month,
+            orders_year,
+            conversion_rate(checkouts_today, sessions_today),
+            conversion_rate(checkouts_month, sessions_month),
+            conversion_rate(checkouts_year, sessions_year),
+        )
+
+    @staticmethod
+    def _shopifyql_rows(result: dict[str, Any], label: str) -> list[dict[str, Any]]:
+        """Validate a ShopifyQL result and return its rows."""
+        if errors := result.get("parseErrors"):
+            raise ShopifyApiError(f"ShopifyQL {label} query failed: {'; '.join(errors)}")
+        table = result.get("tableData")
+        rows = table.get("rows") if isinstance(table, dict) else None
+        if not isinstance(rows, list):
+            raise ShopifyApiError(f"ShopifyQL returned no {label} data")
+        return rows
 
     async def async_get_monthly_revenue(
         self,

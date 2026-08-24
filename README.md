@@ -12,6 +12,9 @@ A Home Assistant custom integration exposing Shopify revenue and inventory perfo
 - Comparable LTM revenue for the same months one year earlier
 - LTM year-over-year change
 - A 12-row monthly comparison dataset for dashboard charts
+- Sessions today, month to date, and year to date
+- Orders today, month to date, and year to date
+- Online store conversion rate today, month to date, and year to date
 
 ## Requirements
 
@@ -21,6 +24,7 @@ A Home Assistant custom integration exposing Shopify revenue and inventory perfo
 - The `read_orders` scope
 - The `read_all_orders` scope when year-to-date data can be older than Shopify's default 60-day order window
 - The `read_inventory` or `read_products` scope, plus permission to view product costs, for inventory value
+- The `read_reports` scope and Shopify Level 2 protected customer data access for ShopifyQL analytics
 
 Shopify's client credentials grant only works for apps developed by your own organization and stores owned by that organization.
 
@@ -62,6 +66,10 @@ Data is polled every five minutes. The integration obtains an Admin API token wi
 
 The integration is read-only and performs GraphQL queries only.
 
+## Sessions, orders, and conversion
+
+Traffic metrics use ShopifyQL Analytics and refresh every five minutes. Sessions include human online-store sessions only; bot sessions are excluded. Conversion rate is calculated as sessions that completed checkout divided by sessions, multiplied by 100, and is shown with one decimal place. Order counts use Shopify Analytics' `orders` metric. These reporting periods follow Shopify Analytics' reporting calendar and store timezone.
+
 ## Entities
 
 - `sensor.shopify_integration_revenue_today`
@@ -74,6 +82,15 @@ The integration is read-only and performs GraphQL queries only.
 - `sensor.shopify_integration_revenue_ltm_previous_year`
 - `sensor.shopify_integration_revenue_ltm_change_percent`
 - `sensor.shopify_integration_monthly_revenue`
+- `sensor.shopify_integration_sessions_today`
+- `sensor.shopify_integration_sessions_month_to_date`
+- `sensor.shopify_integration_sessions_year_to_date`
+- `sensor.shopify_integration_orders_today`
+- `sensor.shopify_integration_orders_month_to_date`
+- `sensor.shopify_integration_orders_year_to_date`
+- `sensor.shopify_integration_conversion_rate_today`
+- `sensor.shopify_integration_conversion_rate_month_to_date`
+- `sensor.shopify_integration_conversion_rate_year_to_date`
 
 Entity IDs can vary if Home Assistant resolves a naming collision.
 
@@ -83,7 +100,7 @@ An ApexCharts dashboard example is available at [`examples/shopify_integration_d
 
 ## API version
 
-v0.3.0 targets Shopify Admin GraphQL API `2026-07`.
+v0.4.0 targets Shopify Admin GraphQL API `2026-07`.
 
 ## License
 
