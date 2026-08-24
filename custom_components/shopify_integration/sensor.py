@@ -12,9 +12,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import MonthlyRevenueData, RevenueData
+from .api import AnalyticsData, MonthlyRevenueData, RevenueData
 from .const import DOMAIN
 from .coordinator import (
+    ShopifyAnalyticsCoordinator,
     ShopifyMonthlyRevenueCoordinator,
     ShopifyIntegrationCoordinator,
 )
@@ -96,6 +97,72 @@ MONTHLY_SENSORS = (
 )
 
 
+@dataclass(frozen=True)
+class ShopifyAnalyticsSensorDescription:
+    """Describe a Shopify Analytics sensor."""
+
+    key: str
+    translation_key: str
+    value_fn: Callable[[AnalyticsData], int | Decimal]
+    unit: str
+    percentage: bool = False
+
+
+ANALYTICS_SENSORS = (
+    ShopifyAnalyticsSensorDescription(
+        "sessions_today", "sessions_today", lambda data: data.sessions_today, "sessions"
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "sessions_month_to_date",
+        "sessions_month_to_date",
+        lambda data: data.sessions_month_to_date,
+        "sessions",
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "sessions_year_to_date",
+        "sessions_year_to_date",
+        lambda data: data.sessions_year_to_date,
+        "sessions",
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "orders_today", "orders_today", lambda data: data.orders_today, "orders"
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "orders_month_to_date",
+        "orders_month_to_date",
+        lambda data: data.orders_month_to_date,
+        "orders",
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "orders_year_to_date",
+        "orders_year_to_date",
+        lambda data: data.orders_year_to_date,
+        "orders",
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "conversion_rate_today",
+        "conversion_rate_today",
+        lambda data: data.conversion_rate_today,
+        "%",
+        True,
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "conversion_rate_month_to_date",
+        "conversion_rate_month_to_date",
+        lambda data: data.conversion_rate_month_to_date,
+        "%",
+        True,
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "conversion_rate_year_to_date",
+        "conversion_rate_year_to_date",
+        lambda data: data.conversion_rate_year_to_date,
+        "%",
+        True,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -104,6 +171,9 @@ async def async_setup_entry(
     """Set up Shopify revenue sensors."""
     coordinators = hass.data[DOMAIN][entry.entry_id]
     coordinator: ShopifyIntegrationCoordinator = coordinators["coordinator"]
+    analytics_coordinator: ShopifyAnalyticsCoordinator = coordinators[
+        "analytics_coordinator"
+    ]
     monthly_coordinator: ShopifyMonthlyRevenueCoordinator = coordinators[
         "monthly_coordinator"
     ]
@@ -113,6 +183,10 @@ async def async_setup_entry(
     async_add_entities(
         ShopifyMonthlySensor(monthly_coordinator, entry, description)
         for description in MONTHLY_SENSORS
+    )
+    async_add_entities(
+        ShopifyAnalyticsSensor(analytics_coordinator, entry, description)
+        for description in ANALYTICS_SENSORS
     )
 
 
@@ -198,4 +272,39 @@ class ShopifyMonthlySensor(
         if self._description.key != "monthly_revenue":
             return None
         return {"months": list(self.coordinator.data.months)}
+
+
+class ShopifyAnalyticsSensor(
+    CoordinatorEntity[ShopifyAnalyticsCoordinator], SensorEntity
+):
+    """A Shopify Analytics sensor."""
+
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_icon = "mdi:chart-timeline-variant"
+
+    def __init__(
+        self,
+        coordinator: ShopifyAnalyticsCoordinator,
+        entry: ConfigEntry,
+        description: ShopifyAnalyticsSensorDescription,
+    ) -> None:
+        super().__init__(coordinator)
+        self._description = description
+        self._attr_translation_key = description.translation_key
+        self._attr_has_entity_name = True
+        self._attr_unique_id = f"{entry.unique_id}_{description.key}"
+        self._attr_native_unit_of_measurement = description.unit
+        if description.percentage:
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 1
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.unique_id or entry.entry_id)},
+            "name": "Shopify Integration",
+            "manufacturer": "Shopify",
+        }
+
+    @property
+    def native_value(self) -> int | Decimal:
+        """Return the analytics value."""
+        return self._description.value_fn(self.coordinator.data)
 
