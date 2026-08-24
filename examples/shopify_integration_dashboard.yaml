@@ -1,0 +1,105 @@
+title: Shopify Integration
+views:
+  - title: Performance
+    path: performance
+    icon: mdi:shopify
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Rolling 12 months
+            icon: mdi:calendar-range
+          - type: tile
+            entity: sensor.shopify_integration_revenue_ltm
+            name: Revenue LTM
+            color: green
+          - type: tile
+            entity: sensor.shopify_integration_revenue_ltm_previous_year
+            name: Same months previous year
+            color: blue
+          - type: tile
+            entity: sensor.shopify_integration_revenue_ltm_change_percent
+            name: Year-over-year change
+            color: orange
+
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Monthly revenue comparison
+            icon: mdi:chart-bar
+          - type: custom:apexcharts-card
+            header:
+              show: true
+              title: LTM compared with the same month last year
+            apex_config:
+              chart:
+                type: bar
+                height: 420
+              plotOptions:
+                bar:
+                  horizontal: false
+                  columnWidth: 72%
+              dataLabels:
+                enabled: false
+              xaxis:
+                type: datetime
+              yaxis:
+                labels:
+                  formatter: |
+                    EVAL:function(value) { return Math.round(value).toLocaleString(); }
+              tooltip:
+                shared: true
+                intersect: false
+            series:
+              - entity: sensor.shopify_integration_monthly_revenue
+                name: Latest 12 months
+                type: column
+                color: '#43a047'
+                data_generator: |
+                  return entity.attributes.months.map((row) => [
+                    new Date(`${row.month}-01T00:00:00`).getTime(),
+                    Number(row.revenue)
+                  ]);
+              - entity: sensor.shopify_integration_monthly_revenue
+                name: Same month previous year
+                type: column
+                color: '#607d8b'
+                data_generator: |
+                  return entity.attributes.months.map((row) => [
+                    new Date(`${row.month}-01T00:00:00`).getTime(),
+                    Number(row.previous_year)
+                  ]);
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Current performance
+            icon: mdi:cash-clock
+          - type: tile
+            entity: sensor.shopify_integration_revenue_today
+            name: Today
+          - type: tile
+            entity: sensor.shopify_integration_revenue_current_month
+            name: Current month
+          - type: tile
+            entity: sensor.shopify_integration_revenue_year_to_date
+            name: Year to date
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Reference periods
+            icon: mdi:compare-horizontal
+          - type: tile
+            entity: sensor.shopify_integration_revenue_previous_month
+            name: Previous month
+          - type: tile
+            entity: sensor.shopify_integration_revenue_last_year_same_time
+            name: Last year at this time
+          - type: tile
+            entity: sensor.shopify_integration_inventory_value
+            name: Inventory value at cost
+
