@@ -1,4 +1,4 @@
-"""Sensors for Shopify Performance."""
+"""Sensors for Shopify Integration."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .api import MonthlyRevenueData, RevenueData
 from .const import DOMAIN
 from .coordinator import (
     ShopifyMonthlyRevenueCoordinator,
-    ShopifyPerformanceCoordinator,
+    ShopifyIntegrationCoordinator,
 )
 
 
@@ -99,7 +99,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Shopify revenue sensors."""
     coordinators = hass.data[DOMAIN][entry.entry_id]
-    coordinator: ShopifyPerformanceCoordinator = coordinators["coordinator"]
+    coordinator: ShopifyIntegrationCoordinator = coordinators["coordinator"]
     monthly_coordinator: ShopifyMonthlyRevenueCoordinator = coordinators[
         "monthly_coordinator"
     ]
@@ -112,7 +112,7 @@ async def async_setup_entry(
     )
 
 
-class ShopifyRevenueSensor(CoordinatorEntity[ShopifyPerformanceCoordinator], SensorEntity):
+class ShopifyRevenueSensor(CoordinatorEntity[ShopifyIntegrationCoordinator], SensorEntity):
     """A Shopify revenue sensor."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
@@ -120,7 +120,7 @@ class ShopifyRevenueSensor(CoordinatorEntity[ShopifyPerformanceCoordinator], Sen
 
     def __init__(
         self,
-        coordinator: ShopifyPerformanceCoordinator,
+        coordinator: ShopifyIntegrationCoordinator,
         entry: ConfigEntry,
         description: ShopifyRevenueSensorDescription,
     ) -> None:
@@ -132,7 +132,7 @@ class ShopifyRevenueSensor(CoordinatorEntity[ShopifyPerformanceCoordinator], Sen
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.unique_id or entry.entry_id)},
-            "name": "Shopify Performance",
+            "name": "Shopify Integration",
             "manufacturer": "Shopify",
         }
 
@@ -170,7 +170,7 @@ class ShopifyMonthlySensor(
             self._attr_device_class = SensorDeviceClass.MONETARY
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.unique_id or entry.entry_id)},
-            "name": "Shopify Performance",
+            "name": "Shopify Integration",
             "manufacturer": "Shopify",
         }
 

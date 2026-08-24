@@ -1,0 +1,13 @@
+{
+  "domain": "shopify_integration",
+  "name": "Shopify Integration",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/Jopppardk/HAShopifyIntegration",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Jopppardk/HAShopifyIntegration/issues",
+  "requirements": [],
+  "version": "0.3.0"
+}
+

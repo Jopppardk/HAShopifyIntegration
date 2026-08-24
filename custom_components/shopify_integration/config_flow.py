@@ -1,4 +1,4 @@
-"""Config flow for Shopify Performance."""
+"""Config flow for Shopify Integration."""
 
 from __future__ import annotations
 
@@ -31,8 +31,8 @@ def normalize_shop_domain(value: str) -> str:
     return domain
 
 
-class ShopifyPerformanceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle the Shopify Performance config flow."""
+class ShopifyIntegrationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle the Shopify Integration config flow."""
 
     VERSION = 1
 

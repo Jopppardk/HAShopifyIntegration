@@ -1,4 +1,4 @@
-"""The Shopify Performance integration."""
+"""The Shopify Integration integration."""
 
 from __future__ import annotations
 
@@ -11,21 +11,21 @@ from .api import ShopifyApiClient
 from .const import CONF_SHOP_DOMAIN, DOMAIN
 from .coordinator import (
     ShopifyMonthlyRevenueCoordinator,
-    ShopifyPerformanceCoordinator,
+    ShopifyIntegrationCoordinator,
 )
 
 PLATFORMS = [Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Shopify Performance from a config entry."""
+    """Set up Shopify Integration from a config entry."""
     client = ShopifyApiClient(
         session=async_get_clientsession(hass),
         shop_domain=entry.data[CONF_SHOP_DOMAIN],
         client_id=entry.data[CONF_CLIENT_ID],
         client_secret=entry.data[CONF_CLIENT_SECRET],
     )
-    coordinator = ShopifyPerformanceCoordinator(hass, client)
+    coordinator = ShopifyIntegrationCoordinator(hass, client)
     monthly_coordinator = ShopifyMonthlyRevenueCoordinator(hass, client)
     await coordinator.async_config_entry_first_refresh()
     await monthly_coordinator.async_config_entry_first_refresh()

@@ -1,4 +1,4 @@
-"""Data update coordinator for Shopify Performance."""
+"""Data update coordinator for Shopify Integration."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .const import DOMAIN, MONTHLY_UPDATE_INTERVAL, UPDATE_INTERVAL
 _LOGGER = logging.getLogger(__name__)
 
 
-class ShopifyPerformanceCoordinator(DataUpdateCoordinator[RevenueData]):
+class ShopifyIntegrationCoordinator(DataUpdateCoordinator[RevenueData]):
     """Coordinate Shopify revenue updates."""
 
     def __init__(self, hass: HomeAssistant, client: ShopifyApiClient) -> None:

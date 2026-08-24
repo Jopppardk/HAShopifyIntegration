@@ -1,8 +1,8 @@
-"""Constants for Shopify Performance."""
+"""Constants for Shopify Integration."""
 
 from datetime import timedelta
 
-DOMAIN = "shopify_performance"
+DOMAIN = "shopify_integration"
 PLATFORMS = ["sensor"]
 
 CONF_SHOP_DOMAIN = "shop_domain"
