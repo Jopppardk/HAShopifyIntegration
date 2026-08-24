@@ -26,6 +26,12 @@
   },
   "entity": {
     "sensor": {
+      "carts_created_month_to_date": { "name": "Carts created month to date" },
+      "carts_created_today": { "name": "Carts created today" },
+      "carts_created_year_to_date": { "name": "Carts created year to date" },
+      "checkouts_reached_month_to_date": { "name": "Checkouts reached month to date" },
+      "checkouts_reached_today": { "name": "Checkouts reached today" },
+      "checkouts_reached_year_to_date": { "name": "Checkouts reached year to date" },
       "conversion_rate_month_to_date": { "name": "Conversion rate month to date" },
       "conversion_rate_today": { "name": "Conversion rate today" },
       "conversion_rate_year_to_date": { "name": "Conversion rate year to date" },
