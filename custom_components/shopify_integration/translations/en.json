@@ -19,13 +19,16 @@
         "data_description": {
           "shop_domain": "For example mystore.myshopify.com"
         },
-        "description": "Connect a Shopify store using an app with read_orders access.",
+        "description": "Connect a Shopify store using an app with read_orders and read_reports access.",
         "title": "Connect Shopify"
       }
     }
   },
   "entity": {
     "sensor": {
+      "conversion_rate_month_to_date": { "name": "Conversion rate month to date" },
+      "conversion_rate_today": { "name": "Conversion rate today" },
+      "conversion_rate_year_to_date": { "name": "Conversion rate year to date" },
       "inventory_value": { "name": "Inventory value" },
       "monthly_revenue": { "name": "Monthly revenue" },
       "revenue_current_month": { "name": "Revenue current month" },
@@ -35,7 +38,13 @@
       "revenue_last_year_same_time": { "name": "Revenue last year at this time" },
       "revenue_previous_month": { "name": "Revenue previous month" },
       "revenue_today": { "name": "Revenue today" },
-      "revenue_year_to_date": { "name": "Revenue year to date" }
+      "revenue_year_to_date": { "name": "Revenue year to date" },
+      "orders_month_to_date": { "name": "Orders month to date" },
+      "orders_today": { "name": "Orders today" },
+      "orders_year_to_date": { "name": "Orders year to date" },
+      "sessions_month_to_date": { "name": "Sessions month to date" },
+      "sessions_today": { "name": "Sessions today" },
+      "sessions_year_to_date": { "name": "Sessions year to date" }
     }
   },
   "title": "Shopify Integration"
