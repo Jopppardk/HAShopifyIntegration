@@ -9,7 +9,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import MonthlyRevenueData, RevenueData, ShopifyApiClient, ShopifyApiError
+from .api import (
+    AnalyticsData,
+    MonthlyRevenueData,
+    RevenueData,
+    ShopifyApiClient,
+    ShopifyApiError,
+)
 from .const import DOMAIN, MONTHLY_UPDATE_INTERVAL, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,6 +71,30 @@ class ShopifyIntegrationCoordinator(DataUpdateCoordinator[RevenueData]):
                 shopify_timestamp(now_local),
             )
             return await self._client.async_add_inventory_value(revenue)
+        except ShopifyApiError as err:
+            raise UpdateFailed(str(err)) from err
+
+
+class ShopifyAnalyticsCoordinator(DataUpdateCoordinator[AnalyticsData]):
+    """Coordinate ShopifyQL analytics updates."""
+
+    def __init__(self, hass: HomeAssistant, client: ShopifyApiClient) -> None:
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=f"{DOMAIN}_analytics",
+            update_interval=UPDATE_INTERVAL,
+        )
+        self._client = client
+
+    async def _async_update_data(self) -> AnalyticsData:
+        now_local = dt_util.now()
+        try:
+            return await self._client.async_get_analytics(
+                now_local.strftime("%Y-%m-%d"),
+                now_local.strftime("%Y-%m"),
+                now_local.strftime("%Y"),
+            )
         except ShopifyApiError as err:
             raise UpdateFailed(str(err)) from err
 
