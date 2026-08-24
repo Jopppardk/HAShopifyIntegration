@@ -181,19 +181,37 @@ ANALYTICS_SENSORS = (
     ShopifyAnalyticsSensorDescription(
         "checkouts_reached_today",
         "checkouts_reached_today",
-        lambda data: data.checkouts_today,
+        lambda data: data.checkouts_reached_today,
         "sessions",
     ),
     ShopifyAnalyticsSensorDescription(
         "checkouts_reached_month_to_date",
         "checkouts_reached_month_to_date",
-        lambda data: data.checkouts_month_to_date,
+        lambda data: data.checkouts_reached_month_to_date,
         "sessions",
     ),
     ShopifyAnalyticsSensorDescription(
         "checkouts_reached_year_to_date",
         "checkouts_reached_year_to_date",
-        lambda data: data.checkouts_year_to_date,
+        lambda data: data.checkouts_reached_year_to_date,
+        "sessions",
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "checkouts_completed_today",
+        "checkouts_completed_today",
+        lambda data: data.checkouts_completed_today,
+        "sessions",
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "checkouts_completed_month_to_date",
+        "checkouts_completed_month_to_date",
+        lambda data: data.checkouts_completed_month_to_date,
+        "sessions",
+    ),
+    ShopifyAnalyticsSensorDescription(
+        "checkouts_completed_year_to_date",
+        "checkouts_completed_year_to_date",
+        lambda data: data.checkouts_completed_year_to_date,
         "sessions",
     ),
 )
