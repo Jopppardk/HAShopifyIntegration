@@ -1,0 +1,43 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This Shopify store is already configured."
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Shopify.",
+      "invalid_auth": "Shopify rejected the credentials or required scope is missing.",
+      "invalid_shop_domain": "Enter a valid store domain ending in .myshopify.com.",
+      "unknown": "Unexpected error."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret",
+          "shop_domain": "Shopify store domain"
+        },
+        "data_description": {
+          "shop_domain": "For example mystore.myshopify.com"
+        },
+        "description": "Connect a Shopify store using an app with read_orders access.",
+        "title": "Connect Shopify"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "inventory_value": { "name": "Inventory value" },
+      "monthly_revenue": { "name": "Monthly revenue" },
+      "revenue_current_month": { "name": "Revenue current month" },
+      "revenue_ltm": { "name": "Revenue LTM" },
+      "revenue_ltm_change_percent": { "name": "Revenue LTM change" },
+      "revenue_ltm_previous_year": { "name": "Revenue LTM previous year" },
+      "revenue_last_year_same_time": { "name": "Revenue last year at this time" },
+      "revenue_previous_month": { "name": "Revenue previous month" },
+      "revenue_today": { "name": "Revenue today" },
+      "revenue_year_to_date": { "name": "Revenue year to date" }
+    }
+  },
+  "title": "Shopify Integration"
+}
+
