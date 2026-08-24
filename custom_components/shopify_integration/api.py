@@ -66,9 +66,12 @@ class AnalyticsData:
     carts_today: int
     carts_month_to_date: int
     carts_year_to_date: int
-    checkouts_today: int
-    checkouts_month_to_date: int
-    checkouts_year_to_date: int
+    checkouts_reached_today: int
+    checkouts_reached_month_to_date: int
+    checkouts_reached_year_to_date: int
+    checkouts_completed_today: int
+    checkouts_completed_month_to_date: int
+    checkouts_completed_year_to_date: int
 
 
 ORDERS_QUERY = """
@@ -287,8 +290,8 @@ class ShopifyApiClient:
     ) -> AnalyticsData:
         """Return Shopify Analytics session, order, and conversion totals."""
         orders_query = (
-            "FROM sales SHOW orders TIMESERIES day DURING this_year "
-            "ORDER BY day ASC"
+            "FROM sales SHOW orders WHERE sales_channel = 'Online Store' "
+            "TIMESERIES day DURING this_year ORDER BY day ASC"
         )
         sessions_query = (
             "FROM sessions SHOW sessions, sessions_with_cart_additions, "
@@ -367,6 +370,9 @@ class ShopifyApiClient:
             reached_today,
             reached_month,
             reached_year,
+            checkouts_today,
+            checkouts_month,
+            checkouts_year,
         )
 
     @staticmethod
