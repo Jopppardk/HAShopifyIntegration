@@ -8,6 +8,6 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Jopppardk/HAShopifyIntegration/issues",
   "requirements": [],
-  "version": "0.5.0"
+  "version": "0.6.0"
 }
 
