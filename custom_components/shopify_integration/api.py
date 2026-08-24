@@ -63,6 +63,12 @@ class AnalyticsData:
     conversion_rate_today: Decimal
     conversion_rate_month_to_date: Decimal
     conversion_rate_year_to_date: Decimal
+    carts_today: int
+    carts_month_to_date: int
+    carts_year_to_date: int
+    checkouts_today: int
+    checkouts_month_to_date: int
+    checkouts_year_to_date: int
 
 
 ORDERS_QUERY = """
@@ -285,7 +291,8 @@ class ShopifyApiClient:
             "ORDER BY day ASC"
         )
         sessions_query = (
-            "FROM sessions SHOW sessions, sessions_that_completed_checkout "
+            "FROM sessions SHOW sessions, sessions_with_cart_additions, "
+            "sessions_that_reached_checkout, sessions_that_completed_checkout "
             "WHERE human_or_bot_session = 'human' TIMESERIES day "
             "DURING this_year ORDER BY day ASC"
         )
@@ -309,21 +316,33 @@ class ShopifyApiClient:
 
         sessions_today = sessions_month = sessions_year = 0
         checkouts_today = checkouts_month = checkouts_year = 0
+        carts_today = carts_month = carts_year = 0
+        reached_today = reached_month = reached_year = 0
         for row in session_rows:
             day = str(row.get("day", ""))[:10]
             sessions = int(Decimal(str(row.get("sessions", 0))))
             checkouts = int(
                 Decimal(str(row.get("sessions_that_completed_checkout", 0)))
             )
+            carts = int(Decimal(str(row.get("sessions_with_cart_additions", 0))))
+            reached = int(
+                Decimal(str(row.get("sessions_that_reached_checkout", 0)))
+            )
             if day.startswith(year_key):
                 sessions_year += sessions
                 checkouts_year += checkouts
+                carts_year += carts
+                reached_year += reached
             if day.startswith(month_key):
                 sessions_month += sessions
                 checkouts_month += checkouts
+                carts_month += carts
+                reached_month += reached
             if day == today_key:
                 sessions_today += sessions
                 checkouts_today += checkouts
+                carts_today += carts
+                reached_today += reached
 
         def conversion_rate(completed: int, sessions: int) -> Decimal:
             if sessions == 0:
@@ -342,6 +361,12 @@ class ShopifyApiClient:
             conversion_rate(checkouts_today, sessions_today),
             conversion_rate(checkouts_month, sessions_month),
             conversion_rate(checkouts_year, sessions_year),
+            carts_today,
+            carts_month,
+            carts_year,
+            reached_today,
+            reached_month,
+            reached_year,
         )
 
     @staticmethod
