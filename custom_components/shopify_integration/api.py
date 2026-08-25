@@ -47,6 +47,10 @@ class MonthlyRevenueData:
     ltm: Decimal
     previous_year: Decimal
     change_percent: Decimal | None
+    current_month_previous_year_full: Decimal
+    month_to_date_change_percent: Decimal | None
+    current_month_forecast: Decimal | None
+    current_month_forecast_change_percent: Decimal | None
     currency: str
 
 
@@ -443,6 +447,30 @@ class ShopifyApiClient:
 
         current_totals = totals[12:]
         previous_totals = totals[:12]
+        previous_current_month_full = previous_totals[-1]
+        current_month_total = current_totals[-1]
+        month_to_date_change_percent = (
+            (current_month_total - previous_current_month_partial)
+            / previous_current_month_partial
+            * Decimal("100")
+            if previous_current_month_partial != 0
+            else None
+        )
+        current_month_forecast = (
+            previous_current_month_full
+            * current_month_total
+            / previous_current_month_partial
+            if previous_current_month_partial != 0
+            else None
+        )
+        current_month_forecast_change_percent = (
+            (current_month_forecast - previous_current_month_full)
+            / previous_current_month_full
+            * Decimal("100")
+            if current_month_forecast is not None
+            and previous_current_month_full != 0
+            else None
+        )
         previous_totals[-1] = previous_current_month_partial
         months: list[dict[str, Any]] = []
         for index, (current, previous) in enumerate(
@@ -476,7 +504,15 @@ class ShopifyApiClient:
             else None
         )
         return MonthlyRevenueData(
-            tuple(months), ltm, previous_year, change_percent, currency
+            months=tuple(months),
+            ltm=ltm,
+            previous_year=previous_year,
+            change_percent=change_percent,
+            current_month_previous_year_full=previous_current_month_full,
+            month_to_date_change_percent=month_to_date_change_percent,
+            current_month_forecast=current_month_forecast,
+            current_month_forecast_change_percent=current_month_forecast_change_percent,
+            currency=currency,
         )
 
     @staticmethod
