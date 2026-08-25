@@ -6,6 +6,7 @@ A Home Assistant custom integration exposing Shopify revenue and inventory perfo
 - Revenue year to date
 - Revenue previous month
 - Revenue current month
+- Revenue current month in the previous year, through the equivalent date and time
 - Revenue last year at this time
 - Inventory value at cost
 - Revenue LTM (latest 12 months, including the current partial month)
@@ -51,7 +52,7 @@ The integration selects orders by `createdAt`, excludes orders whose `cancelledA
 
 This is gross current order value—not an accounting payout, cash-flow, tax, or profit metric. A fully refunded, non-cancelled order normally contributes its remaining current total (typically zero).
 
-The year starts January 1, today starts at midnight, current month starts on day 1, and previous month covers the complete preceding calendar month in Home Assistant's configured timezone. “Revenue last year at this time” covers January 1 last year through the equivalent local date and time last year. Boundaries are converted to UTC only for Shopify queries.
+The year starts January 1, today starts at midnight, current month starts on day 1, and previous month covers the complete preceding calendar month in Home Assistant's configured timezone. “Revenue current month previous year” covers the same calendar month last year from its first day through the equivalent local date and time. “Revenue last year at this time” covers January 1 last year through the equivalent local date and time last year. Boundaries are converted to UTC only for Shopify queries.
 
 Inventory value is a point-in-time estimate: for every tracked inventory item with a unit cost, the integration sums positive `available` quantities across all active Shopify locations and multiplies that quantity by `unitCost`. Untracked items, items without unit cost, and zero or negative available quantities contribute zero.
 
@@ -79,6 +80,7 @@ Traffic metrics use ShopifyQL Analytics and refresh every five minutes. Sessions
 - `sensor.shopify_integration_revenue_year_to_date`
 - `sensor.shopify_integration_revenue_previous_month`
 - `sensor.shopify_integration_revenue_current_month`
+- `sensor.shopify_integration_revenue_current_month_previous_year`
 - `sensor.shopify_integration_revenue_last_year_same_time`
 - `sensor.shopify_integration_inventory_value`
 - `sensor.shopify_integration_revenue_ltm`
@@ -112,7 +114,7 @@ An ApexCharts dashboard example is available at [`examples/shopify_integration_d
 
 ## API version
 
-v0.6.0 targets Shopify Admin GraphQL API `2026-07`.
+v0.7.0 targets Shopify Admin GraphQL API `2026-07`.
 
 ## License
 
