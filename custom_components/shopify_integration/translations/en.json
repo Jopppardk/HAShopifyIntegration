@@ -41,6 +41,7 @@
       "inventory_value": { "name": "Inventory value" },
       "monthly_revenue": { "name": "Monthly revenue" },
       "revenue_current_month": { "name": "Revenue current month" },
+      "revenue_current_month_previous_year": { "name": "Revenue current month previous year" },
       "revenue_ltm": { "name": "Revenue LTM" },
       "revenue_ltm_change_percent": { "name": "Revenue LTM change" },
       "revenue_ltm_previous_year": { "name": "Revenue LTM previous year" },

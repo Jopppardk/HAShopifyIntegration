@@ -90,6 +90,11 @@ MONTHLY_SENSORS = (
         SensorStateClass.MEASUREMENT,
     ),
     ShopifyMonthlySensorDescription(
+        "revenue_current_month_previous_year",
+        "revenue_current_month_previous_year",
+        lambda data: Decimal(data.months[-1]["previous_year"]),
+    ),
+    ShopifyMonthlySensorDescription(
         "monthly_revenue",
         "monthly_revenue",
         lambda data: Decimal(data.months[-1]["revenue"]),
