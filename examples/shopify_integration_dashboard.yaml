@@ -89,6 +89,37 @@ views:
             name: Year to date
 
       - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Current month forecast
+            icon: mdi:chart-timeline-variant-shimmer
+          - type: tile
+            entity: sensor.shopify_integration_revenue_current_month
+            name: Revenue month to date
+            color: orange
+          - type: tile
+            entity: sensor.shopify_integration_revenue_current_month_previous_year
+            name: Same point last year
+            color: blue
+          - type: tile
+            entity: sensor.shopify_integration_revenue_month_to_date_change_percent
+            name: MTD change
+            color: orange
+          - type: tile
+            entity: sensor.shopify_integration_revenue_current_month_forecast
+            name: Forecast for full month
+            color: orange
+          - type: tile
+            entity: sensor.shopify_integration_revenue_current_month_previous_year_full
+            name: Full comparable month last year
+            color: blue
+          - type: tile
+            entity: sensor.shopify_integration_revenue_current_month_forecast_change_percent
+            name: Forecast change
+            color: orange
+
+      - type: grid
         cards:
           - type: heading
             heading: Reference periods
