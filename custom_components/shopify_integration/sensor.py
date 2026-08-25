@@ -95,6 +95,40 @@ MONTHLY_SENSORS = (
         lambda data: Decimal(data.months[-1]["previous_year"]),
     ),
     ShopifyMonthlySensorDescription(
+        "revenue_current_month_previous_year_full",
+        "revenue_current_month_previous_year_full",
+        lambda data: data.current_month_previous_year_full,
+    ),
+    ShopifyMonthlySensorDescription(
+        "revenue_month_to_date_change_percent",
+        "revenue_month_to_date_change_percent",
+        lambda data: (
+            data.month_to_date_change_percent.quantize(Decimal("0.1"))
+            if data.month_to_date_change_percent is not None
+            else None
+        ),
+        False,
+        SensorStateClass.MEASUREMENT,
+    ),
+    ShopifyMonthlySensorDescription(
+        "revenue_current_month_forecast",
+        "revenue_current_month_forecast",
+        lambda data: data.current_month_forecast,
+        True,
+        SensorStateClass.MEASUREMENT,
+    ),
+    ShopifyMonthlySensorDescription(
+        "revenue_current_month_forecast_change_percent",
+        "revenue_current_month_forecast_change_percent",
+        lambda data: (
+            data.current_month_forecast_change_percent.quantize(Decimal("0.1"))
+            if data.current_month_forecast_change_percent is not None
+            else None
+        ),
+        False,
+        SensorStateClass.MEASUREMENT,
+    ),
+    ShopifyMonthlySensorDescription(
         "monthly_revenue",
         "monthly_revenue",
         lambda data: Decimal(data.months[-1]["revenue"]),
