@@ -206,7 +206,7 @@ async def websocket_update_inventory(
         )
         coordinator = entry_data.get("coordinator")
         if coordinator is not None:
-            hass.async_create_task(coordinator.async_request_refresh())
+            await coordinator.async_refresh()
 
     connection.send_result(
         msg["id"],
