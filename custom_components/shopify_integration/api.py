@@ -155,33 +155,6 @@ mutation SetOnHand(
 }
 """
 
-INVENTORY_QUERY = """
-query InventoryValue($first: Int!, $after: String) {
-  inventoryItems(first: $first, after: $after) {
-    nodes {
-      id
-      tracked
-      unitCost { amount currencyCode }
-      inventoryLevels(first: 10) {
-        nodes { quantities(names: ["available"]) { name quantity } }
-        pageInfo { hasNextPage endCursor }
-      }
-    }
-    pageInfo { hasNextPage endCursor }
-  }
-}
-"""
-
-INVENTORY_LEVELS_QUERY = """
-query InventoryLevels($id: ID!, $after: String) {
-  inventoryItem(id: $id) {
-    inventoryLevels(first: 250, after: $after) {
-      nodes { quantities(names: ["available"]) { name quantity } }
-      pageInfo { hasNextPage endCursor }
-    }
-  }
-}
-"""
 
 
 class ShopifyApiClient:
@@ -417,50 +390,16 @@ class ShopifyApiClient:
         }
 
     async def async_add_inventory_value(self, data: RevenueData) -> RevenueData:
-        """Return performance data with current available inventory at unit cost."""
-        after: str | None = None
-        inventory_value = Decimal("0")
-
-        while True:
-            payload = await self._async_graphql(
-                INVENTORY_QUERY, {"first": 50, "after": after}
-            )
-            items = payload["inventoryItems"]
-            for item in items["nodes"]:
-                unit_cost = item["unitCost"]
-                if not item["tracked"] or unit_cost is None:
-                    continue
-                if unit_cost["currencyCode"] != data.currency:
-                    raise ShopifyApiError(
-                        "Inventory cost currency did not match shop currency"
-                    )
-                try:
-                    cost = Decimal(unit_cost["amount"])
-                except (InvalidOperation, TypeError) as err:
-                    raise ShopifyApiError("Shopify returned an invalid unit cost") from err
-
-                levels = item["inventoryLevels"]
-                available = self._available_quantity(levels["nodes"])
-                while levels["pageInfo"]["hasNextPage"]:
-                    level_payload = await self._async_graphql(
-                        INVENTORY_LEVELS_QUERY,
-                        {"id": item["id"], "after": levels["pageInfo"]["endCursor"]},
-                    )
-                    inventory_item = level_payload["inventoryItem"]
-                    if inventory_item is None:
-                        raise ShopifyApiError(
-                            "Inventory item disappeared while updating"
-                        )
-                    levels = inventory_item["inventoryLevels"]
-                    available += self._available_quantity(levels["nodes"])
-
-                inventory_value += Decimal(max(available, 0)) * cost
-
-            page_info = items["pageInfo"]
-            if not page_info["hasNextPage"]:
-                break
-            after = page_info["endCursor"]
-
+        """Use the same physical stocktake basis for the inventory value sensor."""
+        stocktake = await self.async_get_stocktake_inventory()
+        inventory_value = sum(
+            (
+                Decimal(item["unit_cost"]) * Decimal(item["on_hand"])
+                for item in stocktake["items"]
+                if item["unit_cost"] is not None
+            ),
+            Decimal("0"),
+        )
         return replace(data, inventory_value=inventory_value)
 
     async def async_get_analytics(
@@ -687,16 +626,6 @@ class ShopifyApiClient:
             current_month_forecast=current_month_forecast,
             current_month_forecast_change_percent=current_month_forecast_change_percent,
             currency=currency,
-        )
-
-    @staticmethod
-    def _available_quantity(levels: list[dict[str, Any]]) -> int:
-        """Sum available quantity from inventory level nodes."""
-        return sum(
-            int(quantity["quantity"])
-            for level in levels
-            for quantity in level["quantities"]
-            if quantity["name"] == "available"
         )
 
     async def _async_get_token(self, force: bool = False) -> str:
