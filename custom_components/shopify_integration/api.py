@@ -107,6 +107,52 @@ query PerformanceAnalytics($ordersQuery: String!, $sessionsQuery: String!) {
 }
 """
 
+STOCKTAKE_LOCATIONS_QUERY = """
+query StocktakeLocations {
+  locations(first: 10) {
+    nodes { id name isActive }
+  }
+}
+"""
+
+STOCKTAKE_ITEMS_QUERY = """
+query StocktakeItems($first: Int!, $after: String, $locationId: ID!) {
+  inventoryItems(first: $first, after: $after) {
+    nodes {
+      id
+      sku
+      tracked
+      inventoryLevel(locationId: $locationId) {
+        quantities(names: ["on_hand"]) { name quantity }
+      }
+      variants(first: 1) {
+        nodes {
+          id
+          title
+          displayName
+          barcode
+          product { id title status }
+        }
+      }
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+"""
+
+SET_ON_HAND_QUERY = """
+mutation SetOnHand(
+  $input: InventorySetOnHandQuantitiesInput!,
+  $idempotencyKey: String!
+) {
+  inventorySetOnHandQuantities(input: $input)
+    @idempotent(key: $idempotencyKey) {
+    inventoryAdjustmentGroup { id createdAt }
+    userErrors { field message }
+  }
+}
+"""
+
 INVENTORY_QUERY = """
 query InventoryValue($first: Int!, $after: String) {
   inventoryItems(first: $first, after: $after) {
@@ -241,6 +287,115 @@ class ShopifyApiClient:
             Decimal("0"),
             currency,
         )
+
+    async def async_get_stocktake_inventory(self) -> dict[str, Any]:
+        """Return all active tracked variants at the store's only active location."""
+        location_data = await self._async_graphql(STOCKTAKE_LOCATIONS_QUERY, {})
+        active_locations = [
+            location
+            for location in location_data["locations"]["nodes"]
+            if location["isActive"]
+        ]
+        if len(active_locations) != 1:
+            raise ShopifyApiError(
+                "Inventory counting requires exactly one active Shopify location"
+            )
+        location = active_locations[0]
+        items: list[dict[str, Any]] = []
+        after: str | None = None
+
+        while True:
+            data = await self._async_graphql(
+                STOCKTAKE_ITEMS_QUERY,
+                {"first": 250, "after": after, "locationId": location["id"]},
+            )
+            inventory_items = data["inventoryItems"]
+            for inventory_item in inventory_items["nodes"]:
+                variants = inventory_item.get("variants")
+                variant_nodes = variants.get("nodes", []) if variants else []
+                level = inventory_item.get("inventoryLevel")
+                if (
+                    not inventory_item["tracked"]
+                    or not variant_nodes
+                    or level is None
+                ):
+                    continue
+                variant = variant_nodes[0]
+                product = variant["product"]
+                if product["status"] != "ACTIVE":
+                    continue
+                quantities = {
+                    quantity["name"]: int(quantity["quantity"])
+                    for quantity in level["quantities"]
+                }
+                items.append(
+                    {
+                        "inventory_item_id": inventory_item["id"],
+                        "variant_id": variant["id"],
+                        "product": product["title"],
+                        "variant": variant["title"],
+                        "display_name": variant["displayName"],
+                        "sku": inventory_item.get("sku") or "",
+                        "barcode": variant.get("barcode") or "",
+                        "on_hand": quantities.get("on_hand", 0),
+                    }
+                )
+
+            page_info = inventory_items["pageInfo"]
+            if not page_info["hasNextPage"]:
+                break
+            after = page_info["endCursor"]
+
+        items.sort(
+            key=lambda item: (
+                item["product"].casefold(),
+                item["variant"].casefold(),
+                item["sku"].casefold(),
+            )
+        )
+        return {
+            "location": {"id": location["id"], "name": location["name"]},
+            "items": items,
+        }
+
+    async def async_set_on_hand_quantities(
+        self,
+        location_id: str,
+        updates: list[dict[str, Any]],
+        idempotency_key: str,
+        reference_document_uri: str,
+    ) -> dict[str, Any]:
+        """Set physical on-hand quantities with compare-and-set protection."""
+        data = await self._async_graphql(
+            SET_ON_HAND_QUERY,
+            {
+                "input": {
+                    "reason": "correction",
+                    "referenceDocumentUri": reference_document_uri,
+                    "setQuantities": [
+                        {
+                            "inventoryItemId": update["inventory_item_id"],
+                            "locationId": location_id,
+                            "quantity": update["quantity"],
+                            "changeFromQuantity": update["expected_quantity"],
+                        }
+                        for update in updates
+                    ],
+                },
+                "idempotencyKey": idempotency_key,
+            },
+        )
+        result = data["inventorySetOnHandQuantities"]
+        return {
+            "adjustment_group": result.get("inventoryAdjustmentGroup"),
+            "errors": [
+                {
+                    "field": error.get("field"),
+                    "message": str(error.get("message", "Inventory update failed")),
+                }
+                for error in result.get("userErrors", [])
+            ],
+        }
 
     async def async_add_inventory_value(self, data: RevenueData) -> RevenueData:
         """Return performance data with current available inventory at unit cost."""
