@@ -58,7 +58,7 @@ This is gross current order value—not an accounting payout, cash-flow, tax, or
 
 The year starts January 1, today starts at midnight, current month starts on day 1, and previous month covers the complete preceding calendar month in Home Assistant's configured timezone. “Revenue current month previous year” covers the same calendar month last year from its first day through the equivalent local date and time. “Revenue last year at this time” covers January 1 last year through the equivalent local date and time last year. Boundaries are converted to UTC only for Shopify queries.
 
-Inventory value is a point-in-time estimate: for every tracked inventory item with a unit cost, the integration sums positive `available` quantities across all active Shopify locations and multiplies that quantity by `unitCost`. Untracked items, items without unit cost, and zero or negative available quantities contribute zero.
+Inventory value uses the same basis as the stocktake dashboard: active products with tracked variants at the store's single active location. For each variant, physical `on_hand` quantity is multiplied by Shopify `unitCost`. Variants without unit cost are excluded. This keeps `sensor.shopify_integration_inventory_value` equal to the stocktake card's original inventory value.
 
 ## Current month forecast
 
