@@ -89,7 +89,7 @@ Updates use Shopify's `inventorySetOnHandQuantities` mutation with an idempotenc
 Add this JavaScript module under **Settings → Dashboards → Resources**:
 
 ```text
-/shopify_integration/shopify-inventory-card.js?v=0.9.0
+/shopify_integration/shopify-inventory-card.js?v=0.10.0
 ```
 
 Select **JavaScript module** as the resource type. Then add the card:
@@ -163,3 +163,8 @@ v0.9.0 targets Shopify Admin GraphQL API `2026-07`.
 
 MIT
 
+
+
+### Inventory value during stocktake
+
+The stocktake table shows Shopify unit costs, row values, resizable columns, and live original/corrected inventory value totals. Variants without unit cost are excluded and identified.

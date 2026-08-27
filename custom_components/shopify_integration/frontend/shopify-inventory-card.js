@@ -31,6 +31,15 @@ class ShopifyInventoryCard extends HTMLElement {
     return { title: "Lageroptælling" };
   }
 
+  _money(value) {
+    return new Intl.NumberFormat("da-DK", {
+      style: "currency",
+      currency: this._currency || "DKK",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+
   _escape(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -51,6 +60,7 @@ class ShopifyInventoryCard extends HTMLElement {
       const result = await this._hass.callWS(request);
       this._configEntryId = result.config_entry_id;
       this._location = result.location;
+      this._currency = result.currency;
       this._items = result.items;
       this._draft = new Map();
       for (const item of this._items) {
@@ -173,6 +183,8 @@ class ShopifyInventoryCard extends HTMLElement {
         }
         table {
           width: 100%;
+          min-width: 980px;
+          table-layout: fixed;
           border-collapse: separate;
           border-spacing: 0;
           font-size: 14px;
@@ -186,6 +198,25 @@ class ShopifyInventoryCard extends HTMLElement {
           color: var(--secondary-text-color);
           background: var(--card-background-color);
           border-bottom: 1px solid var(--divider-color);
+        }
+        th.resizable { position: sticky; }
+        .resize-handle {
+          position: absolute;
+          top: 0;
+          right: -4px;
+          width: 8px;
+          height: 100%;
+          cursor: col-resize;
+          touch-action: none;
+          z-index: 3;
+        }
+        .resize-handle::after {
+          content: "";
+          position: absolute;
+          top: 20%;
+          bottom: 20%;
+          left: 3px;
+          border-left: 1px solid var(--divider-color);
         }
         th.number, td.number { text-align: right; }
         td {
@@ -220,6 +251,22 @@ class ShopifyInventoryCard extends HTMLElement {
         }
         .difference.positive { color: var(--success-color, #43a047); }
         .difference.negative { color: var(--error-color, #db4437); }
+        .value-summary {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          padding: 0 20px 14px;
+        }
+        .value-box {
+          padding: 12px 14px;
+          border-radius: 10px;
+          background: var(--secondary-background-color);
+        }
+        .value-label { color: var(--secondary-text-color); font-size: 12px; }
+        .value-amount { margin-top: 4px; font-size: 20px; font-weight: 600; }
+        .value-amount.positive { color: var(--success-color, #43a047); }
+        .value-amount.negative { color: var(--error-color, #db4437); }
+        .cost-note { padding: 0 20px 12px; color: var(--secondary-text-color); font-size: 12px; }
         .footer {
           display: flex;
           justify-content: space-between;
@@ -238,6 +285,7 @@ class ShopifyInventoryCard extends HTMLElement {
         @media (max-width: 700px) {
           .header, .footer { align-items: stretch; flex-direction: column; }
           .toolbar { grid-template-columns: 1fr 1fr; }
+          .value-summary { grid-template-columns: 1fr; }
           .search { grid-column: 1 / -1; }
           th:nth-child(3), td:nth-child(3) { display: none; }
           td, th { padding-left: 8px; padding-right: 8px; }
@@ -253,6 +301,8 @@ class ShopifyInventoryCard extends HTMLElement {
         ? this._draft.get(item.inventory_item_id)
         : item.on_hand;
       const difference = counted - item.on_hand;
+      const unitCost = item.unit_cost === null ? null : Number(item.unit_cost);
+      const rowValue = unitCost === null ? null : counted * unitCost;
       const variant = item.variant === "Default Title" ? "" : item.variant;
       const searchable = [
         item.product, item.variant, item.sku, item.barcode, item.display_name
@@ -260,6 +310,7 @@ class ShopifyInventoryCard extends HTMLElement {
       return `
         <tr data-id="${this._escape(item.inventory_item_id)}"
             data-search="${this._escape(searchable)}"
+            data-unit-cost="${unitCost === null ? "" : unitCost}"
             class="${difference !== 0 ? "changed" : ""}">
           <td>
             <div class="product">${this._escape(item.product)}</div>
@@ -278,6 +329,8 @@ class ShopifyInventoryCard extends HTMLElement {
           <td class="number difference ${difference > 0 ? "positive" : difference < 0 ? "negative" : ""}">
             ${difference > 0 ? "+" : ""}${difference}
           </td>
+          <td class="number">${unitCost === null ? "—" : this._money(unitCost)}</td>
+          <td class="number row-value">${rowValue === null ? "—" : this._money(rowValue)}</td>
         </tr>
       `;
     }).join("");
@@ -302,15 +355,28 @@ class ShopifyInventoryCard extends HTMLElement {
 
         ${this._message ? `<div class="message ${this._messageTone}">${this._escape(this._message)}</div>` : ""}
 
+        <div class="value-summary">
+          <div class="value-box"><div class="value-label">Oprindelig lagerværdi</div><div class="value-amount original-value"></div></div>
+          <div class="value-box"><div class="value-label">Korrigeret lagerværdi</div><div class="value-amount corrected-value"></div></div>
+          <div class="value-box"><div class="value-label">Difference</div><div class="value-amount value-difference"></div></div>
+        </div>
+        <div class="cost-note"></div>
+
         <div class="table-wrap">
           <table>
+            <colgroup>
+              <col style="width: 30%"><col style="width: 16%"><col style="width: 10%">
+              <col style="width: 10%"><col style="width: 10%"><col style="width: 12%"><col style="width: 14%">
+            </colgroup>
             <thead>
               <tr>
-                <th>Produkt og variant</th>
-                <th>SKU / stregkode</th>
-                <th class="number">Shopify</th>
-                <th class="number">Optalt</th>
-                <th class="number">Difference</th>
+                <th class="resizable">Produkt og variant<span class="resize-handle"></span></th>
+                <th class="resizable">SKU / stregkode<span class="resize-handle"></span></th>
+                <th class="number resizable">Shopify<span class="resize-handle"></span></th>
+                <th class="number resizable">Optalt<span class="resize-handle"></span></th>
+                <th class="number resizable">Difference<span class="resize-handle"></span></th>
+                <th class="number resizable">Kostpris<span class="resize-handle"></span></th>
+                <th class="number">Lagerværdi</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -355,7 +421,28 @@ class ShopifyInventoryCard extends HTMLElement {
     this.shadowRoot.querySelector(".update").addEventListener(
       "click", () => this._reviewAndUpdate()
     );
+    this._bindColumnResizers();
     this._updateSummary();
+  }
+
+  _bindColumnResizers() {
+    const columns = [...this.shadowRoot.querySelectorAll("col")];
+    this.shadowRoot.querySelectorAll(".resize-handle").forEach((handle, index) => {
+      handle.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        const startX = event.clientX;
+        const startWidth = columns[index].getBoundingClientRect().width;
+        const move = (moveEvent) => {
+          columns[index].style.width = `${Math.max(70, startWidth + moveEvent.clientX - startX)}px`;
+        };
+        const stop = () => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", stop);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", stop);
+      });
+    });
   }
 
   _quantityChanged(event) {
@@ -378,6 +465,9 @@ class ShopifyInventoryCard extends HTMLElement {
     differenceCell.textContent = `${difference > 0 ? "+" : ""}${difference}`;
     differenceCell.classList.toggle("positive", difference > 0);
     differenceCell.classList.toggle("negative", difference < 0);
+    const unitCost = row.dataset.unitCost === "" ? null : Number(row.dataset.unitCost);
+    row.querySelector(".row-value").textContent =
+      unitCost === null ? "—" : this._money(quantity * unitCost);
     this._updateSummary();
   }
 
@@ -396,6 +486,26 @@ class ShopifyInventoryCard extends HTMLElement {
         : `${changes.length} ændringer · ${increases} forhøjes · ${reductions} reduceres`;
     this.shadowRoot.querySelector(".update").disabled = changes.length === 0;
     this.shadowRoot.querySelector(".reset").disabled = changes.length === 0;
+
+    const originalValue = this._items.reduce((total, item) =>
+      total + (item.unit_cost === null ? 0 : item.on_hand * Number(item.unit_cost)), 0);
+    const correctedValue = this._items.reduce((total, item) => {
+      const quantity = this._draft.has(item.inventory_item_id)
+        ? this._draft.get(item.inventory_item_id)
+        : item.on_hand;
+      return total + (item.unit_cost === null ? 0 : quantity * Number(item.unit_cost));
+    }, 0);
+    const valueDifference = correctedValue - originalValue;
+    this.shadowRoot.querySelector(".original-value").textContent = this._money(originalValue);
+    this.shadowRoot.querySelector(".corrected-value").textContent = this._money(correctedValue);
+    const differenceElement = this.shadowRoot.querySelector(".value-difference");
+    differenceElement.textContent = `${valueDifference > 0 ? "+" : ""}${this._money(valueDifference)}`;
+    differenceElement.classList.toggle("positive", valueDifference > 0);
+    differenceElement.classList.toggle("negative", valueDifference < 0);
+    const missingCosts = this._items.filter((item) => item.unit_cost === null).length;
+    this.shadowRoot.querySelector(".cost-note").textContent = missingCosts
+      ? `${missingCosts} varianter uden kostpris er ikke medregnet i lagerværdien.`
+      : "Alle viste varianter har en kostpris i Shopify.";
   }
 
   _filter(value) {
@@ -438,6 +548,10 @@ class ShopifyInventoryCard extends HTMLElement {
       `${reductions} reduceres`,
       `${increases} forhøjes`,
       `${setToZero} sættes til 0`,
+      `Ændring i lagerværdi: ${this._money(updates.reduce((total, update) => {
+        const item = this._items.find((candidate) => candidate.inventory_item_id === update.inventory_item_id);
+        return total + (item.unit_cost === null ? 0 : update.difference * Number(item.unit_cost));
+      }, 0))}`,
       "",
       "Dinero og bogføring påvirkes ikke.",
       "",

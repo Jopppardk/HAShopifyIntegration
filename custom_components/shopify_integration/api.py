@@ -109,6 +109,7 @@ query PerformanceAnalytics($ordersQuery: String!, $sessionsQuery: String!) {
 
 STOCKTAKE_LOCATIONS_QUERY = """
 query StocktakeLocations {
+  shop { currencyCode }
   locations(first: 10) {
     nodes { id name isActive }
   }
@@ -122,6 +123,7 @@ query StocktakeItems($first: Int!, $after: String, $locationId: ID!) {
       id
       sku
       tracked
+      unitCost { amount currencyCode }
       inventoryLevel(locationId: $locationId) {
         quantities(names: ["on_hand"]) { name quantity }
       }
@@ -301,6 +303,7 @@ class ShopifyApiClient:
                 "Inventory counting requires exactly one active Shopify location"
             )
         location = active_locations[0]
+        currency = str(location_data["shop"]["currencyCode"])
         items: list[dict[str, Any]] = []
         after: str | None = None
 
@@ -328,6 +331,18 @@ class ShopifyApiClient:
                     quantity["name"]: int(quantity["quantity"])
                     for quantity in level["quantities"]
                 }
+                unit_cost = inventory_item.get("unitCost")
+                if unit_cost is not None:
+                    if unit_cost["currencyCode"] != currency:
+                        raise ShopifyApiError(
+                            "Inventory cost currency did not match shop currency"
+                        )
+                    try:
+                        Decimal(unit_cost["amount"])
+                    except (InvalidOperation, TypeError) as err:
+                        raise ShopifyApiError(
+                            "Shopify returned an invalid unit cost"
+                        ) from err
                 items.append(
                     {
                         "inventory_item_id": inventory_item["id"],
@@ -338,6 +353,9 @@ class ShopifyApiClient:
                         "sku": inventory_item.get("sku") or "",
                         "barcode": variant.get("barcode") or "",
                         "on_hand": quantities.get("on_hand", 0),
+                        "unit_cost": str(unit_cost["amount"])
+                        if unit_cost is not None
+                        else None,
                     }
                 )
 
@@ -355,6 +373,7 @@ class ShopifyApiClient:
         )
         return {
             "location": {"id": location["id"], "name": location["name"]},
+            "currency": currency,
             "items": items,
         }
 
