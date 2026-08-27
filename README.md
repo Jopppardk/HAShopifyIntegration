@@ -31,6 +31,7 @@ A Home Assistant custom integration exposing Shopify revenue and inventory perfo
 - The `read_orders` scope
 - The `read_all_orders` scope when year-to-date data can be older than Shopify's default 60-day order window
 - The `read_inventory` or `read_products` scope, plus permission to view product costs, for inventory value
+- The `write_inventory` scope and permission to update inventory for the optional stocktake dashboard
 - The `read_reports` scope and Shopify Level 2 protected customer data access for ShopifyQL analytics
 
 Shopify's client credentials grant only works for apps developed by your own organization and stores owned by that organization.
@@ -78,6 +79,29 @@ The integration keeps a rolling window of the latest 12 calendar months and alig
 For example, on August 24, 2026, the window is September 2025 through August 2026 and is aligned with September 2024 through August 24, 2025. At the start of September, the window moves forward automatically.
 
 The 24-month history query is refreshed every six hours to limit Shopify API load. Live operational sensors continue to refresh every five minutes. The `sensor.shopify_integration_monthly_revenue` entity exposes the aligned rows in its `months` attribute for dashboard use.
+
+## Inventory counting dashboard
+
+Version 0.9.0 adds an administrator-only bulk stocktake card for stores with exactly one active Shopify location. It lists every active inventory-tracked variant, shows Shopify's physical `on_hand` quantity, accepts counted quantities inline, and sends only changed rows when **Gennemgå og opdater lager** is confirmed.
+
+Updates use Shopify's `inventorySetOnHandQuantities` mutation with an idempotency key and `changeFromQuantity` compare-and-set protection. If an order or another process changes a quantity after the list was loaded, that row is returned for review instead of being overwritten. The feature updates Shopify inventory only; it does not post accounting entries or communicate with Dinero.
+
+Add this JavaScript module under **Settings → Dashboards → Resources**:
+
+```text
+/shopify_integration/shopify-inventory-card.js?v=0.9.0
+```
+
+Select **JavaScript module** as the resource type. Then add the card:
+
+```yaml
+type: custom:shopify-inventory-card
+title: Lageroptælling
+grid_options:
+  columns: full
+```
+
+Only Home Assistant administrators can load or update the inventory through this card. An example full dashboard is available at [`examples/shopify_inventory_dashboard.yaml`](examples/shopify_inventory_dashboard.yaml).
 
 ## Updates and authentication
 
@@ -133,7 +157,7 @@ An ApexCharts dashboard example is available at [`examples/shopify_integration_d
 
 ## API version
 
-v0.8.0 targets Shopify Admin GraphQL API `2026-07`.
+v0.9.0 targets Shopify Admin GraphQL API `2026-07`.
 
 ## License
 

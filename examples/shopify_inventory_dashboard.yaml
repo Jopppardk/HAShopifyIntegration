@@ -1,0 +1,18 @@
+title: Shopify Lager
+views:
+  - title: Lager
+    path: lager
+    icon: mdi:warehouse
+    type: sections
+    max_columns: 4
+    sections:
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: Lageroptælling
+            icon: mdi:clipboard-list-outline
+          - type: custom:shopify-inventory-card
+            title: Lageroptælling
+            grid_options:
+              columns: full

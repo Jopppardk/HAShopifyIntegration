@@ -2,20 +2,38 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from .api import ShopifyApiClient
 from .const import CONF_SHOP_DOMAIN, DOMAIN
+from .inventory import async_register_websocket_commands
 from .coordinator import (
     ShopifyAnalyticsCoordinator,
     ShopifyMonthlyRevenueCoordinator,
     ShopifyIntegrationCoordinator,
 )
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 PLATFORMS = [Platform.SENSOR]
+FRONTEND_PATH = Path(__file__).parent / "frontend" / "shopify-inventory-card.js"
+FRONTEND_URL = f"/{DOMAIN}/shopify-inventory-card.js"
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the inventory frontend and WebSocket commands."""
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(FRONTEND_URL, str(FRONTEND_PATH), False)]
+    )
+    async_register_websocket_commands(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -37,6 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinator": coordinator,
         "analytics_coordinator": analytics_coordinator,
         "monthly_coordinator": monthly_coordinator,
+        "client": client,
     }
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
