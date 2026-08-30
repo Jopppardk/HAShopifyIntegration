@@ -106,7 +106,6 @@ class ShopifyPackagingCard extends HTMLElement {
         <tr>
           <td>${this._escape(order.order_name)}</td>
           <td>${this._date(order.date)}</td>
-          <td>${this._escape(order.variant || "—")}</td>
           <td class="number">${order.quantity}</td>
           <td class="number">${order.weight_grams === null ? "Mangler" : order.weight_grams + " g"}</td>
           <td class="number">${this._kg(order.grams)}</td>
@@ -125,7 +124,7 @@ class ShopifyPackagingCard extends HTMLElement {
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th>Ordre</th><th>Dato</th><th>Variant</th>
+                <th>Ordre</th><th>Dato</th>
                 <th class="number">Antal</th><th class="number">Pr. stk.</th>
                 <th class="number">Samlet</th><th>Indberetning</th>
               </tr></thead>
