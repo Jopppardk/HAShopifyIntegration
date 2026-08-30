@@ -15,6 +15,7 @@ from homeassistant.helpers.typing import ConfigType
 from .api import ShopifyApiClient
 from .const import CONF_SHOP_DOMAIN, DOMAIN
 from .inventory import async_register_websocket_commands
+from .packaging import async_register_websocket_commands as async_register_packaging_commands
 from .coordinator import (
     ShopifyAnalyticsCoordinator,
     ShopifyMonthlyRevenueCoordinator,
@@ -25,14 +26,22 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 PLATFORMS = [Platform.SENSOR]
 FRONTEND_PATH = Path(__file__).parent / "frontend" / "shopify-inventory-card.js"
 FRONTEND_URL = f"/{DOMAIN}/shopify-inventory-card.js"
+PACKAGING_FRONTEND_PATH = Path(__file__).parent / "frontend" / "shopify-packaging-card.js"
+PACKAGING_FRONTEND_URL = f"/{DOMAIN}/shopify-packaging-card.js"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the inventory frontend and WebSocket commands."""
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(FRONTEND_URL, str(FRONTEND_PATH), False)]
+        [
+            StaticPathConfig(FRONTEND_URL, str(FRONTEND_PATH), False),
+            StaticPathConfig(
+                PACKAGING_FRONTEND_URL, str(PACKAGING_FRONTEND_PATH), False
+            ),
+        ]
     )
     async_register_websocket_commands(hass)
+    async_register_packaging_commands(hass)
     return True
 
 

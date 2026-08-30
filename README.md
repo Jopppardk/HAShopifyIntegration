@@ -103,11 +103,53 @@ grid_options:
 
 Only Home Assistant administrators can load or update the inventory through this card. An example full dashboard is available at [`examples/shopify_inventory_dashboard.yaml`](examples/shopify_inventory_dashboard.yaml).
 
+
+## Packaging dashboard
+
+Version 0.11.0 adds an administrator-only packaging overview based on successful Shopify fulfillments. Reporting periods use Home Assistant's configured timezone and show both the current calendar quarter and year to date. Each sold unit contributes the packaging weight saved on its Shopify product.
+
+Create these product metafields in Shopify:
+
+| Metafield | Recommended type | Meaning |
+| --- | --- | --- |
+| `custom.emballage_indberetning` | Single-line text or dropdown | `Ja`, `Nej`, or `Uafklaret` |
+| `custom.emballage_vaegt_gram` | Integer | Packaging grams per sold unit |
+| `custom.emballage_leverandor` | Single-line text | Packaging supplier |
+| `custom.emballage_leverandorland` | Single-line text | Supplier country |
+| `custom.emballage_leverandor_cvr` | Single-line text | Supplier CVR/VAT number |
+
+The integration snapshots the product metadata for each fulfillment line the first time it is observed. Later product edits therefore do not rewrite historical packaging records. Cancelled or removed fulfillments are excluded when Shopify no longer returns them as active successful fulfillments.
+
+The dashboard also stores manual packaging records in Home Assistant's private `.storage` area. A manual record contains date, description, supplier, supplier country, supplier CVR/VAT number, total weight, and reporting status.
+
+Add this JavaScript module under **Settings → Dashboards → Resources**:
+
+```text
+/shopify_integration/shopify-packaging-card.js?v=0.11.0
+```
+
+Select **JavaScript module**, then add:
+
+```yaml
+type: custom:shopify-packaging-card
+title: Emballageoverblik
+grid_options:
+  columns: full
+```
+
+Only Home Assistant administrators can view or edit this card. The Shopify app needs `read_orders` and `read_products`; YTD history beyond Shopify's normal 60-day order window also needs `read_all_orders`. An example is available at [`examples/shopify_packaging_dashboard.yaml`](examples/shopify_packaging_dashboard.yaml).
+
+### Packaging limitations in v0.11.0
+
+- Reportability follows the product/manual `Ja/Nej/Uafklaret` value. The integration does not inspect a customer's delivery country and therefore does not automatically exclude exports.
+- Household versus commercial packaging is not classified yet. Add that dimension before relying on the dashboard for a filing that requires this split.
+- There is no CSV export yet. Keep invoices, weight documentation, and the submitted report outside Home Assistant as the authoritative compliance record.
+
 ## Updates and authentication
 
 Data is polled every five minutes. The integration obtains an Admin API token with the OAuth client credentials grant. It caches the token in memory, requests a replacement shortly before expiry, and retries once with a new token if Shopify returns HTTP 401.
 
-The integration is read-only and performs GraphQL queries only.
+Shopify data collection is read-only. The optional stocktake card can write inventory only after an administrator confirms the changes; packaging manual entries are stored locally in Home Assistant.
 
 ## Sessions, orders, and conversion
 

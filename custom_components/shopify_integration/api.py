@@ -107,6 +107,55 @@ query PerformanceAnalytics($ordersQuery: String!, $sessionsQuery: String!) {
 }
 """
 
+PACKAGING_FULFILLMENTS_QUERY = """
+query PackagingFulfillments($first: Int!, $after: String, $query: String!) {
+  orders(first: $first, after: $after, query: $query, sortKey: UPDATED_AT) {
+    nodes {
+      id
+      name
+      fulfillments(first: 50) {
+        id
+        createdAt
+        status
+        fulfillmentLineItems(first: 250) {
+          nodes {
+            id
+            quantity
+            lineItem {
+              title
+              variant {
+                id
+                title
+                product {
+                  id
+                  title
+                  packagingReportable: metafield(
+                    namespace: "custom", key: "emballage_indberetning"
+                  ) { value }
+                  packagingWeight: metafield(
+                    namespace: "custom", key: "emballage_vaegt_gram"
+                  ) { value }
+                  packagingSupplierCvr: metafield(
+                    namespace: "custom", key: "emballage_leverandor_cvr"
+                  ) { value }
+                  packagingSupplier: metafield(
+                    namespace: "custom", key: "emballage_leverandor"
+                  ) { value }
+                  packagingSupplierCountry: metafield(
+                    namespace: "custom", key: "emballage_leverandorland"
+                  ) { value }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+"""
+
 STOCKTAKE_LOCATIONS_QUERY = """
 query StocktakeLocations {
   shop { currencyCode }
@@ -262,6 +311,87 @@ class ShopifyApiClient:
             Decimal("0"),
             currency,
         )
+
+    async def async_get_packaging_fulfillments(
+        self, year_start_utc: str, now_utc: str
+    ) -> list[dict[str, Any]]:
+        """Return successful fulfillment lines and their product packaging fields."""
+        after: str | None = None
+        rows: list[dict[str, Any]] = []
+        search_query = (
+            f"status:any updated_at:>='{year_start_utc}' "
+            f"updated_at:<='{now_utc}'"
+        )
+
+        while True:
+            data = await self._async_graphql(
+                PACKAGING_FULFILLMENTS_QUERY,
+                {"first": 100, "after": after, "query": search_query},
+            )
+            orders = data["orders"]
+            for order in orders["nodes"]:
+                for fulfillment in order.get("fulfillments", []):
+                    if (
+                        fulfillment.get("status") != "SUCCESS"
+                        or fulfillment["createdAt"] < year_start_utc
+                        or fulfillment["createdAt"] > now_utc
+                    ):
+                        continue
+                    for fulfilled in fulfillment["fulfillmentLineItems"]["nodes"]:
+                        line_item = fulfilled["lineItem"]
+                        variant = line_item.get("variant")
+                        product = variant.get("product") if variant else None
+
+                        def metafield_value(name: str) -> str | None:
+                            field = product.get(name) if product else None
+                            return str(field["value"]) if field is not None else None
+
+                        weight_value = metafield_value("packagingWeight")
+                        weight_grams: int | None = None
+                        if weight_value not in (None, ""):
+                            try:
+                                weight_grams = int(weight_value)
+                            except (TypeError, ValueError) as err:
+                                raise ShopifyApiError(
+                                    f"Invalid packaging weight for {product['title']}"
+                                ) from err
+                            if weight_grams < 0:
+                                raise ShopifyApiError(
+                                    f"Negative packaging weight for {product['title']}"
+                                )
+
+                        rows.append(
+                            {
+                                "event_id": fulfilled["id"],
+                                "fulfillment_id": fulfillment["id"],
+                                "fulfilled_at": fulfillment["createdAt"],
+                                "order_id": order["id"],
+                                "order_name": order["name"],
+                                "product_id": product["id"] if product else None,
+                                "product": (
+                                    product["title"] if product else line_item["title"]
+                                ),
+                                "variant_id": variant["id"] if variant else None,
+                                "variant": variant["title"] if variant else "",
+                                "quantity": int(fulfilled.get("quantity") or 0),
+                                "weight_grams": weight_grams,
+                                "reportable": metafield_value("packagingReportable"),
+                                "supplier": metafield_value("packagingSupplier") or "",
+                                "supplier_country": (
+                                    metafield_value("packagingSupplierCountry") or ""
+                                ),
+                                "supplier_cvr": (
+                                    metafield_value("packagingSupplierCvr") or ""
+                                ),
+                            }
+                        )
+
+            page_info = orders["pageInfo"]
+            if not page_info["hasNextPage"]:
+                break
+            after = page_info["endCursor"]
+
+        return rows
 
     async def async_get_stocktake_inventory(self) -> dict[str, Any]:
         """Return all active tracked variants at the store's only active location."""
