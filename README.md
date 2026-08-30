@@ -124,10 +124,12 @@ The dashboard also stores manual packaging records in Home Assistant's private `
 
 The card estimates variable packaging cost from reportable weight. The default 2026 rate is DKK 3.79/kg, matching Emballage Indberetning's standard under-8-ton household-packaging rate at release time. Administrators can edit the rate directly on the card; it is stored privately in Home Assistant. Estimates exclude VAT, membership fees, authority fees, and other fixed charges.
 
+The period selector applies to every dashboard section. It offers the current quarter, previous quarter, year to date, previous calendar year, and a custom inclusive date range. Summary weight and cost, product/order details, and manual records all follow the selected period.
+
 Add this JavaScript module under **Settings → Dashboards → Resources**:
 
 ```text
-/shopify_integration/shopify-packaging-card.js?v=0.12.0
+/shopify_integration/shopify-packaging-card.js?v=0.13.0
 ```
 
 Select **JavaScript module**, then add:
