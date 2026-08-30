@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -182,7 +182,11 @@ def _period(
 
 
 async def _build_report(
-    hass: HomeAssistant, config_entry_id: str, entry_data: dict[str, Any]
+    hass: HomeAssistant,
+    config_entry_id: str,
+    entry_data: dict[str, Any],
+    custom_start: date | None = None,
+    custom_end: date | None = None,
 ) -> dict[str, Any]:
     """Fetch Shopify data, update immutable snapshots, and build the report."""
     now = dt_util.now()
@@ -191,11 +195,34 @@ async def _build_report(
     )
     quarter_month = ((now.month - 1) // 3) * 3 + 1
     quarter_start = year_start.replace(month=quarter_month)
+    previous_year_start = year_start.replace(year=now.year - 1)
+    if quarter_month == 1:
+        previous_quarter_start = previous_year_start.replace(month=10)
+    else:
+        previous_quarter_start = quarter_start.replace(month=quarter_month - 3)
+
+    today = now.date()
+    if (custom_start is None) != (custom_end is None):
+        raise ValueError("Both custom start and end dates are required")
+    if custom_start and custom_end:
+        if custom_start > custom_end:
+            raise ValueError("Custom start date must be before end date")
+        if custom_end > today:
+            raise ValueError("Custom end date cannot be in the future")
+
+    history_start_date = min(
+        previous_year_start.date(), custom_start or previous_year_start.date()
+    )
+    history_start = year_start.replace(
+        year=history_start_date.year,
+        month=history_start_date.month,
+        day=history_start_date.day,
+    )
     timestamp = lambda value: dt_util.as_utc(value).isoformat().replace("+00:00", "Z")
 
     client: ShopifyApiClient = entry_data["client"]
     live_rows = await client.async_get_packaging_fulfillments(
-        timestamp(year_start), timestamp(now)
+        timestamp(history_start), timestamp(now)
     )
     store, data = await _load_data(hass, config_entry_id)
     snapshots = data["snapshots"]
@@ -241,19 +268,42 @@ async def _build_report(
         await store.async_save(data)
 
     active_rows = [snapshots[event_id] for event_id in active_ids]
-    today = now.date()
+    current_quarter = _period(
+        active_rows, data["manual_entries"], quarter_start.date(), today
+    )
+    year_to_date = _period(
+        active_rows, data["manual_entries"], year_start.date(), today
+    )
+    periods = {
+        "current_quarter": current_quarter,
+        "previous_quarter": _period(
+            active_rows,
+            data["manual_entries"],
+            previous_quarter_start.date(),
+            quarter_start.date() - timedelta(days=1),
+        ),
+        "year_to_date": year_to_date,
+        "previous_year": _period(
+            active_rows,
+            data["manual_entries"],
+            previous_year_start.date(),
+            year_start.date() - timedelta(days=1),
+        ),
+    }
+    if custom_start and custom_end:
+        periods["custom"] = _period(
+            active_rows, data["manual_entries"], custom_start, custom_end
+        )
+
     return {
         "config_entry_id": config_entry_id,
         "generated_at": now.isoformat(),
         "quarter_number": (now.month - 1) // 3 + 1,
         "year": now.year,
         "price_per_kg": float(data["price_per_kg"]),
-        "quarter": _period(
-            active_rows, data["manual_entries"], quarter_start.date(), today
-        ),
-        "year_to_date": _period(
-            active_rows, data["manual_entries"], year_start.date(), today
-        ),
+        "periods": periods,
+        "quarter": current_quarter,
+        "year_to_date": year_to_date,
         "manual_entries": sorted(
             data["manual_entries"], key=lambda entry: entry["date"], reverse=True
         ),
@@ -266,6 +316,8 @@ async def _build_report(
     {
         vol.Required("type"): GET_REPORT,
         vol.Optional("config_entry_id"): str,
+        vol.Optional("start_date"): vol.Match(r"^\d{4}-\d{2}-\d{2}$"),
+        vol.Optional("end_date"): vol.Match(r"^\d{4}-\d{2}-\d{2}$"),
     }
 )
 async def websocket_get_report(
@@ -278,7 +330,13 @@ async def websocket_get_report(
         config_entry_id, entry_data = _resolve_entry(
             hass, msg.get("config_entry_id")
         )
-        result = await _build_report(hass, config_entry_id, entry_data)
+        result = await _build_report(
+            hass,
+            config_entry_id,
+            entry_data,
+            date.fromisoformat(msg["start_date"]) if msg.get("start_date") else None,
+            date.fromisoformat(msg["end_date"]) if msg.get("end_date") else None,
+        )
     except (ShopifyApiError, ValueError) as err:
         connection.send_error(msg["id"], "packaging_error", str(err))
         return
