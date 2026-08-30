@@ -204,12 +204,35 @@ async def _build_report(
     for row in live_rows:
         event_id = row["event_id"]
         active_ids.append(event_id)
+        normalized_reportable = _reportable(row.get("reportable"))
         if event_id in snapshots:
+            snapshot = snapshots[event_id]
+            incomplete = (
+                snapshot.get("reportable") == "unknown"
+                or snapshot.get("weight_grams") is None
+            )
+            if not incomplete:
+                continue
+
+            refreshed = {
+                **row,
+                "date": snapshot["date"],
+                "reportable": normalized_reportable,
+                "snapshotted_at": snapshot["snapshotted_at"],
+            }
+            if any(
+                snapshot.get(key) != value
+                for key, value in refreshed.items()
+            ):
+                refreshed["refreshed_at"] = now.isoformat()
+                snapshots[event_id] = refreshed
+                changed = True
             continue
+
         snapshots[event_id] = {
             **row,
             "date": _local_date(row["fulfilled_at"]).isoformat(),
-            "reportable": _reportable(row.get("reportable")),
+            "reportable": normalized_reportable,
             "snapshotted_at": now.isoformat(),
         }
         changed = True

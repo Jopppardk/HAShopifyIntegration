@@ -118,7 +118,7 @@ Create these product metafields in Shopify:
 | `custom.emballage_leverandorland` | Single-line text | Supplier country |
 | `custom.emballage_leverandor_cvr` | Single-line text | Supplier CVR/VAT number |
 
-The integration snapshots the product metadata for each fulfillment line the first time it is observed. Later product edits therefore do not rewrite historical packaging records. Cancelled or removed fulfillments are excluded when Shopify no longer returns them as active successful fulfillments.
+The integration snapshots the product metadata for each fulfillment line the first time it is observed. Complete snapshots remain fixed, so later product edits do not rewrite valid historical packaging records. Snapshots with an `Uafklaret` reporting status or missing packaging weight are refreshed automatically from Shopify until completed. Cancelled or removed fulfillments are excluded when Shopify no longer returns them as active successful fulfillments.
 
 The dashboard also stores manual packaging records in Home Assistant's private `.storage` area. A manual record contains date, description, supplier, supplier country, supplier CVR/VAT number, total weight, and reporting status.
 
