@@ -19,6 +19,8 @@ from .const import DOMAIN
 GET_REPORT = "shopify_integration/packaging/get"
 UPSERT_MANUAL = "shopify_integration/packaging/manual/upsert"
 DELETE_MANUAL = "shopify_integration/packaging/manual/delete"
+SET_PRICE = "shopify_integration/packaging/price/set"
+DEFAULT_PRICE_PER_KG = 3.79
 STORAGE_VERSION = 1
 
 
@@ -58,6 +60,7 @@ async def _load_data(
     data = await store.async_load() or {}
     data.setdefault("manual_entries", [])
     data.setdefault("snapshots", {})
+    data.setdefault("price_per_kg", DEFAULT_PRICE_PER_KG)
     return store, data
 
 
@@ -221,6 +224,7 @@ async def _build_report(
         "generated_at": now.isoformat(),
         "quarter_number": (now.month - 1) // 3 + 1,
         "year": now.year,
+        "price_per_kg": float(data["price_per_kg"]),
         "quarter": _period(
             active_rows, data["manual_entries"], quarter_start.date(), today
         ),
@@ -353,8 +357,41 @@ async def websocket_delete_manual(
     connection.send_result(msg["id"], {"deleted": msg["entry_id"]})
 
 
+@websocket_api.require_admin
+@websocket_api.async_response
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): SET_PRICE,
+        vol.Optional("config_entry_id"): str,
+        vol.Required("price_per_kg"): vol.All(
+            vol.Coerce(float), vol.Range(min=0, max=1000)
+        ),
+    }
+)
+async def websocket_set_price(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Store the estimated packaging price per reportable kilogram."""
+    try:
+        config_entry_id, _entry_data = _resolve_entry(
+            hass, msg.get("config_entry_id")
+        )
+        store, data = await _load_data(hass, config_entry_id)
+        data["price_per_kg"] = round(float(msg["price_per_kg"]), 4)
+        await store.async_save(data)
+    except (ShopifyApiError, ValueError) as err:
+        connection.send_error(msg["id"], "packaging_error", str(err))
+        return
+    connection.send_result(
+        msg["id"], {"price_per_kg": data["price_per_kg"]}
+    )
+
+
 def async_register_websocket_commands(hass: HomeAssistant) -> None:
     """Register packaging dashboard WebSocket commands."""
     websocket_api.async_register_command(hass, websocket_get_report)
     websocket_api.async_register_command(hass, websocket_upsert_manual)
     websocket_api.async_register_command(hass, websocket_delete_manual)
+    websocket_api.async_register_command(hass, websocket_set_price)

@@ -43,6 +43,15 @@ class ShopifyPackagingCard extends HTMLElement {
     }).format(Number(grams || 0) / 1000) + " kg";
   }
 
+  _money(value) {
+    return new Intl.NumberFormat("da-DK", {
+      style: "currency",
+      currency: "DKK",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0));
+  }
+
   _date(value) {
     return new Intl.DateTimeFormat("da-DK", {
       day: "2-digit",
@@ -94,6 +103,13 @@ class ShopifyPackagingCard extends HTMLElement {
     return `<div class="summary-box ${tone}">
       <div class="summary-label">${this._escape(label)}</div>
       <div class="summary-value">${this._kg(value)}</div>
+    </div>`;
+  }
+
+  _costBox(label, value) {
+    return `<div class="summary-box estimate">
+      <div class="summary-label">${this._escape(label)}</div>
+      <div class="summary-value">${this._money(value)}</div>
     </div>`;
   }
 
@@ -191,6 +207,9 @@ class ShopifyPackagingCard extends HTMLElement {
     const quarter = this._report.quarter;
     const year = this._report.year_to_date;
     const selected = this._report[this._period];
+    const pricePerKg = Number(this._report.price_per_kg || 0);
+    const quarterCost = quarter.reportable_grams / 1000 * pricePerKg;
+    const yearCost = year.reportable_grams / 1000 * pricePerKg;
     const warnings = [];
     if (selected.unconfigured_product_lines) {
       warnings.push(`${selected.unconfigured_product_lines} fulfillmentlinjer mangler emballagevægt`);
@@ -216,7 +235,17 @@ class ShopifyPackagingCard extends HTMLElement {
             ${this._summaryBox("Indberetningspligtigt i kvartalet", quarter.reportable_grams, "accent")}
             ${this._summaryBox("Forbrug år til dato", year.total_grams)}
             ${this._summaryBox("Indberetningspligtigt år til dato", year.reportable_grams, "accent")}
+            ${this._costBox("Estimeret pris i kvartalet", quarterCost)}
+            ${this._costBox("Estimeret pris år til dato", yearCost)}
           </div>
+          <form class="price-form">
+            <label>Estimeret pris pr. kg
+              <span><input name="price_per_kg" type="number" min="0" max="1000" step="0.01"
+                value="${pricePerKg.toFixed(2)}" required> kr./kg</span>
+            </label>
+            <button type="submit" class="secondary">Gem sats</button>
+            <small>Standard: 3,79 kr./kg for samlet husholdningsemballage i 2026. Ekskl. moms og faste gebyrer.</small>
+          </form>
         </section>
 
         <section>
@@ -260,6 +289,7 @@ class ShopifyPackagingCard extends HTMLElement {
         this._render();
       });
     });
+    this.shadowRoot.querySelector(".price-form").addEventListener("submit", (event) => this._savePrice(event));
     this.shadowRoot.querySelector(".manual-form").addEventListener("submit", (event) => this._saveManual(event));
     this.shadowRoot.querySelector(".cancel").addEventListener("click", () => {
       this._editing = null;
@@ -275,6 +305,23 @@ class ShopifyPackagingCard extends HTMLElement {
     this.shadowRoot.querySelectorAll(".delete").forEach((button) => {
       button.addEventListener("click", () => this._deleteManual(button.dataset.id));
     });
+  }
+
+  async _savePrice(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await this._hass.callWS({
+        type: "shopify_integration/packaging/price/set",
+        config_entry_id: this._configEntryId,
+        price_per_kg: Number(form.get("price_per_kg")),
+      });
+      this._message = "Den estimerede kg-sats er gemt.";
+      await this._load();
+    } catch (error) {
+      this._message = error?.message || String(error);
+      this._render();
+    }
   }
 
   async _saveManual(event) {
@@ -336,6 +383,11 @@ class ShopifyPackagingCard extends HTMLElement {
       .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
       .summary-box { padding: 16px; border-radius: 12px; background: var(--secondary-background-color); }
       .summary-box.accent { background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); }
+      .summary-box.estimate { border: 1px solid color-mix(in srgb, var(--primary-color) 45%, var(--divider-color)); }
+      .price-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; }
+      .price-form label { display: flex; flex-direction: column; gap: 5px; color: var(--secondary-text-color); font-size: 12px; }
+      .price-form input { width: 110px; }
+      .price-form small { flex-basis: 100%; }
       .summary-label { min-height: 34px; color: var(--secondary-text-color); font-size: 13px; }
       .summary-value { margin-top: 6px; font-size: 23px; font-weight: 650; }
       button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }

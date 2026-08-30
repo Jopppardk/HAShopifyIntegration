@@ -122,10 +122,12 @@ The integration snapshots the product metadata for each fulfillment line the fir
 
 The dashboard also stores manual packaging records in Home Assistant's private `.storage` area. A manual record contains date, description, supplier, supplier country, supplier CVR/VAT number, total weight, and reporting status.
 
+The card estimates variable packaging cost from reportable weight. The default 2026 rate is DKK 3.79/kg, matching Emballage Indberetning's standard under-8-ton household-packaging rate at release time. Administrators can edit the rate directly on the card; it is stored privately in Home Assistant. Estimates exclude VAT, membership fees, authority fees, and other fixed charges.
+
 Add this JavaScript module under **Settings → Dashboards → Resources**:
 
 ```text
-/shopify_integration/shopify-packaging-card.js?v=0.11.0
+/shopify_integration/shopify-packaging-card.js?v=0.12.0
 ```
 
 Select **JavaScript module**, then add:
