@@ -99,17 +99,11 @@ class ShopifyPackagingCard extends HTMLElement {
       </div></ha-card>${this._styles()}`;
   }
 
-  _summaryBox(label, value, tone = "") {
-    return `<div class="summary-box ${tone}">
+  _periodSummary(label, grams, cost) {
+    return `<div class="summary-box accent">
       <div class="summary-label">${this._escape(label)}</div>
-      <div class="summary-value">${this._kg(value)}</div>
-    </div>`;
-  }
-
-  _costBox(label, value) {
-    return `<div class="summary-box estimate">
-      <div class="summary-label">${this._escape(label)}</div>
-      <div class="summary-value">${this._money(value)}</div>
+      <div class="summary-value">${this._kg(grams)}</div>
+      <div class="summary-cost">Estimeret pris: <strong>${this._money(cost)}</strong></div>
     </div>`;
   }
 
@@ -231,12 +225,8 @@ class ShopifyPackagingCard extends HTMLElement {
         <section>
           <h2>Samlet emballage</h2>
           <div class="summary-grid">
-            ${this._summaryBox("Forbrug i kvartalet", quarter.total_grams)}
-            ${this._summaryBox("Indberetningspligtigt i kvartalet", quarter.reportable_grams, "accent")}
-            ${this._summaryBox("Forbrug år til dato", year.total_grams)}
-            ${this._summaryBox("Indberetningspligtigt år til dato", year.reportable_grams, "accent")}
-            ${this._costBox("Estimeret pris i kvartalet", quarterCost)}
-            ${this._costBox("Estimeret pris år til dato", yearCost)}
+            ${this._periodSummary("Indberetningspligtigt i kvartalet", quarter.reportable_grams, quarterCost)}
+            ${this._periodSummary("Indberetningspligtigt år til dato", year.reportable_grams, yearCost)}
           </div>
           <form class="price-form">
             <label>Estimeret pris pr. kg
@@ -380,10 +370,11 @@ class ShopifyPackagingCard extends HTMLElement {
       section:last-child { border-bottom: 0; }
       h2 { margin: 0 0 12px; font-size: 19px; }
       .section-heading h2 { margin-bottom: 3px; }
-      .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+      .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .summary-box { padding: 16px; border-radius: 12px; background: var(--secondary-background-color); }
       .summary-box.accent { background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); }
-      .summary-box.estimate { border: 1px solid color-mix(in srgb, var(--primary-color) 45%, var(--divider-color)); }
+      .summary-cost { margin-top: 8px; color: var(--secondary-text-color); font-size: 14px; }
+      .summary-cost strong { color: var(--primary-text-color); font-size: 17px; }
       .price-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; }
       .price-form label { display: flex; flex-direction: column; gap: 5px; color: var(--secondary-text-color); font-size: 12px; }
       .price-form input { width: 110px; }
