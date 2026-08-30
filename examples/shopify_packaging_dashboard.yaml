@@ -1,0 +1,8 @@
+# Add the JavaScript resource first:
+# /shopify_integration/shopify-packaging-card.js?v=0.11.0
+#
+# Then add this card to a full-width dashboard section.
+type: custom:shopify-packaging-card
+title: Emballageoverblik
+grid_options:
+  columns: full
