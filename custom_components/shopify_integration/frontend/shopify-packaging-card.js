@@ -4,7 +4,9 @@ class ShopifyPackagingCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._report = null;
     this._loading = false;
-    this._period = "year_to_date";
+    this._period = "current_quarter";
+    this._customStart = "";
+    this._customEnd = "";
     this._editing = null;
     this._message = "";
   }
@@ -72,6 +74,10 @@ class ShopifyPackagingCard extends HTMLElement {
       if (this._config.config_entry_id) {
         request.config_entry_id = this._config.config_entry_id;
       }
+      if (this._period === "custom" && this._customStart && this._customEnd) {
+        request.start_date = this._customStart;
+        request.end_date = this._customEnd;
+      }
       this._report = await this._hass.callWS(request);
       this._configEntryId = this._report.config_entry_id;
       this._render();
@@ -104,6 +110,35 @@ class ShopifyPackagingCard extends HTMLElement {
       <div class="summary-label">${this._escape(label)}</div>
       <div class="summary-value">${this._kg(grams)}</div>
       <div class="summary-cost">Estimeret pris: <strong>${this._money(cost)}</strong></div>
+    </div>`;
+  }
+
+  _periodLabel() {
+    return {
+      current_quarter: "Indeværende kvartal",
+      previous_quarter: "Forrige kvartal",
+      year_to_date: "År til dato",
+      previous_year: "Sidste kalenderår",
+      custom: "Brugerdefineret periode",
+    }[this._period] || "Valgt periode";
+  }
+
+  _periodSelector() {
+    return `<div class="period-controls">
+      <label>Vis periode
+        <select class="period-select">
+          <option value="current_quarter" ${this._period === "current_quarter" ? "selected" : ""}>Indeværende kvartal</option>
+          <option value="previous_quarter" ${this._period === "previous_quarter" ? "selected" : ""}>Forrige kvartal</option>
+          <option value="year_to_date" ${this._period === "year_to_date" ? "selected" : ""}>År til dato</option>
+          <option value="previous_year" ${this._period === "previous_year" ? "selected" : ""}>Sidste kalenderår</option>
+          <option value="custom" ${this._period === "custom" ? "selected" : ""}>Brugerdefineret…</option>
+        </select>
+      </label>
+      ${this._period === "custom" ? `<form class="custom-period">
+        <label>Fra <input type="date" name="start_date" value="${this._escape(this._customStart)}" required></label>
+        <label>Til <input type="date" name="end_date" value="${this._escape(this._customEnd)}" required></label>
+        <button type="submit" class="secondary">Vis</button>
+      </form>` : ""}
     </div>`;
   }
 
@@ -145,8 +180,7 @@ class ShopifyPackagingCard extends HTMLElement {
     }).join("");
   }
 
-  _manualRows() {
-    const entries = this._report.manual_entries;
+  _manualRows(entries = this._report.manual_entries) {
     if (!entries.length) {
       return '<tr><td colspan="8" class="empty">Ingen manuelle registreringer endnu.</td></tr>';
     }
@@ -198,12 +232,9 @@ class ShopifyPackagingCard extends HTMLElement {
   }
 
   _render() {
-    const quarter = this._report.quarter;
-    const year = this._report.year_to_date;
-    const selected = this._report[this._period];
+    const selected = this._report.periods[this._period];
     const pricePerKg = Number(this._report.price_per_kg || 0);
-    const quarterCost = quarter.reportable_grams / 1000 * pricePerKg;
-    const yearCost = year.reportable_grams / 1000 * pricePerKg;
+    const selectedCost = selected.reportable_grams / 1000 * pricePerKg;
     const warnings = [];
     if (selected.unconfigured_product_lines) {
       warnings.push(`${selected.unconfigured_product_lines} fulfillmentlinjer mangler emballagevægt`);
@@ -223,10 +254,12 @@ class ShopifyPackagingCard extends HTMLElement {
         ${this._message ? `<div class="message">${this._escape(this._message)}</div>` : ""}
 
         <section>
-          <h2>Samlet emballage</h2>
+          <div class="summary-heading">
+            <h2>Samlet emballage</h2>
+            ${this._periodSelector()}
+          </div>
           <div class="summary-grid">
-            ${this._periodSummary("Indberetningspligtigt i kvartalet", quarter.reportable_grams, quarterCost)}
-            ${this._periodSummary("Indberetningspligtigt år til dato", year.reportable_grams, yearCost)}
+            ${this._periodSummary(this._periodLabel(), selected.reportable_grams, selectedCost)}
           </div>
           <form class="price-form">
             <label>Estimeret pris pr. kg
@@ -242,14 +275,7 @@ class ShopifyPackagingCard extends HTMLElement {
           <div class="section-heading">
             <div><h2>Emballage fra produktsalg</h2>
               <p>Baseret på succesfulde Shopify-fulfillments.</p></div>
-            <div class="tabs">
-              <button data-period="year_to_date" class="${this._period === "year_to_date" ? "active" : ""}">
-                År til dato
-              </button>
-              <button data-period="quarter" class="${this._period === "quarter" ? "active" : ""}">
-                Kvartal
-              </button>
-            </div>
+            <strong class="selected-period">${this._periodLabel()}</strong>
           </div>
           <div class="product-summary">
             <span>Samlet: <strong>${this._kg(selected.product_grams)}</strong></span>
@@ -267,18 +293,26 @@ class ShopifyPackagingCard extends HTMLElement {
             <thead><tr><th>Dato</th><th>Beskrivelse</th><th>Leverandør</th>
               <th>Land</th><th>CVR</th><th class="number">Vægt</th>
               <th>Indberetning</th><th></th></tr></thead>
-            <tbody>${this._manualRows()}</tbody>
+            <tbody>${this._manualRows(selected.manual_entries)}</tbody>
           </table></div>
         </section>
       </ha-card>${this._styles()}`;
 
     this.shadowRoot.querySelector(".reload").addEventListener("click", () => this._load());
-    this.shadowRoot.querySelectorAll(".tabs button").forEach((button) => {
-      button.addEventListener("click", () => {
-        this._period = button.dataset.period;
-        this._render();
-      });
+    this.shadowRoot.querySelector(".period-select").addEventListener("change", (event) => {
+      this._period = event.currentTarget.value;
+      this._render();
     });
+    const customPeriod = this.shadowRoot.querySelector(".custom-period");
+    if (customPeriod) {
+      customPeriod.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        this._customStart = form.get("start_date");
+        this._customEnd = form.get("end_date");
+        this._load();
+      });
+    }
     this.shadowRoot.querySelector(".price-form").addEventListener("submit", (event) => this._savePrice(event));
     this.shadowRoot.querySelector(".manual-form").addEventListener("submit", (event) => this._saveManual(event));
     this.shadowRoot.querySelector(".cancel").addEventListener("click", () => {
@@ -361,7 +395,7 @@ class ShopifyPackagingCard extends HTMLElement {
     return `<style>
       :host { display: block; }
       ha-card { overflow: hidden; }
-      .header, .section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+      .header, .section-heading, .summary-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
       .header { padding: 20px; border-bottom: 1px solid var(--divider-color); }
       .title { font-size: 24px; font-weight: 650; }
       .subtitle, p, small { color: var(--secondary-text-color); }
@@ -370,7 +404,11 @@ class ShopifyPackagingCard extends HTMLElement {
       section:last-child { border-bottom: 0; }
       h2 { margin: 0 0 12px; font-size: 19px; }
       .section-heading h2 { margin-bottom: 3px; }
-      .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .summary-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; max-width: 620px; }
+      .period-controls, .custom-period { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+      .period-controls label, .custom-period label { display: flex; flex-direction: column; gap: 4px; color: var(--secondary-text-color); font-size: 12px; }
+      .period-select { min-width: 210px; }
+      .selected-period { color: var(--secondary-text-color); }
       .summary-box { padding: 16px; border-radius: 12px; background: var(--secondary-background-color); }
       .summary-box.accent { background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); }
       .summary-cost { margin-top: 8px; color: var(--secondary-text-color); font-size: 14px; }
@@ -420,7 +458,7 @@ class ShopifyPackagingCard extends HTMLElement {
         .manual-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 600px) {
-        .header, .section-heading, summary { align-items: stretch; flex-direction: column; }
+        .header, .section-heading, .summary-heading, summary { align-items: stretch; flex-direction: column; }
         .summary-grid, .manual-form { grid-template-columns: 1fr; }
         .manual-form label.wide { grid-column: auto; }
         .product-values { justify-content: space-between; text-align: left; }
