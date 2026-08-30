@@ -232,7 +232,7 @@ class ShopifyPackagingCard extends HTMLElement {
   }
 
   _render() {
-    const selected = this._report.periods[this._period];
+    const selected = this._report.periods[this._period] || this._report.periods.current_quarter;
     const pricePerKg = Number(this._report.price_per_kg || 0);
     const selectedCost = selected.reportable_grams / 1000 * pricePerKg;
     const warnings = [];
@@ -301,6 +301,13 @@ class ShopifyPackagingCard extends HTMLElement {
     this.shadowRoot.querySelector(".reload").addEventListener("click", () => this._load());
     this.shadowRoot.querySelector(".period-select").addEventListener("change", (event) => {
       this._period = event.currentTarget.value;
+      if (this._period === "custom") {
+        const today = new Date();
+        this._customEnd = today.toISOString().slice(0, 10);
+        this._customStart = `${today.getFullYear()}-01-01`;
+        this._load();
+        return;
+      }
       this._render();
     });
     const customPeriod = this.shadowRoot.querySelector(".custom-period");
